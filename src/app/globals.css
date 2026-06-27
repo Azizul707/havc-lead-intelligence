@@ -1,26 +1,109 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
+@theme {
   --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-surface: var(--surface);
+  --color-sidebar: var(--sidebar);
+  --color-border-custom: var(--border);
+  
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--muted);
+  
+  --color-primary-custom: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-success-custom: var(--success);
+  --color-warning-custom: var(--warning);
+  --color-danger-custom: var(--danger);
+  --color-info-custom: var(--info);
+  
+  --radius-card: var(--radius-card);
+  --radius-button: var(--radius-button);
+  --radius-input: var(--radius-input);
 }
 
-@media (prefers-color-scheme: dark) {
+
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Backgrounds & Surfaces */
+    --background: #FAFAFA;
+    --surface: #FFFFFF;
+    --sidebar: #FFFFFF;
+    --border: #E5E7EB;
+
+    /* Text Colors */
+    --text-primary: #111827;
+    --text-secondary: #6B7280;
+    --muted: #9CA3AF;
+
+    /* Accents & States */
+    --primary: #2563EB;
+    --primary-hover: #1D4ED8;
+    --success: #22C55E;
+    --warning: #F59E0B;
+    --danger: #EF4444;
+    --info: #0EA5E9;
+
+    /* Border Radius & Layout */
+    --radius-card: 16px;
+    --radius-button: 12px;
+    --radius-input: 12px;
+  }
+
+  /* Dark Mode support utilizing CSS variables as requested */
+  .dark {
+    --background: #0B0F19;
+    --surface: #111827;
+    --sidebar: #111827;
+    --border: #1F2937;
+
+    --text-primary: #F9FAFB;
+    --text-secondary: #D1D5DB;
+    --muted: #6B7280;
+
+    --primary: #3B82F6;
+    --primary-hover: #2563EB;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer base {
+  body {
+    background-color: var(--background);
+    color: var(--text-primary);
+    font-family: 'Geist', 'Inter', sans-serif;
+    overflow-x: hidden;
+  }
+  
+  /* Focus States matching design guidelines */
+  input:focus, textarea:focus, select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-slide-in {
+  animation: slideIn 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-fade-in {
+  animation: fadeIn 200ms ease-out forwards;
 }
