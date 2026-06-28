@@ -11,16 +11,23 @@ export default async function SettingsPage() {
     redirect('/login')
   }
 
-  // profiles টেবিল থেকে সেভ করা সেটিংস লোড করা
+  // Fetch complete profile configuration including notification toggles
   const { data: profile } = await (supabase.from('profiles') as any)
-    .select('n8n_webhook_url, emergency_email_dispatch, auto_ai_ingestion')
+    .select('*')
     .eq('id', user.id)
     .single()
 
   const initialSettings = {
+    fullName: profile?.full_name || '',
+    companyName: profile?.company_name || '',
+    phone: profile?.phone || '',
+    timezone: profile?.timezone || 'UTC',
+    country: profile?.country || 'United States',
+    email: user.email || '',
+    emergencyEmail: profile?.emergency_email_dispatch !== false, // default true
+    autoAiIngestion: profile?.auto_ai_ingestion !== false, // default true
     n8nWebhookUrl: profile?.n8n_webhook_url || '',
-    emergencyEmailDispatch: profile?.emergency_email_dispatch !== false, // default true
-    autoAiIngestion: profile?.auto_ai_ingestion !== false // default true
+    role: profile?.role || 'DISPATCHER'
   }
 
   return <SettingsClient initialSettings={initialSettings} />

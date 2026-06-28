@@ -1,13 +1,12 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 
 import React, { useState } from 'react'
 import { updateSettings } from './actions'
-import { ShieldCheck, Radio, BellRing, Settings, Loader2, Save } from 'lucide-react'
+import { ShieldCheck, Radio, BellRing, Loader2, Save } from 'lucide-react'
 
 interface SettingsData {
   n8nWebhookUrl: string
-  emergencyEmailDispatch: boolean
+  emergencyEmail: boolean
   autoAiIngestion: boolean
 }
 
@@ -17,7 +16,7 @@ export default function SettingsClient({ initialSettings }: { initialSettings: S
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
 
   // স্লাইডিং সুইচের জন্য রিয়্যাক্ট স্টেট
-  const [emergencyEmail, setEmergencyEmail] = useState(initialSettings.emergencyEmailDispatch)
+  const [emergencyEmail, setEmergencyEmail] = useState(initialSettings.emergencyEmail)
   const [autoAi, setAutoAi] = useState(initialSettings.autoAiIngestion)
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -29,7 +28,7 @@ export default function SettingsClient({ initialSettings }: { initialSettings: S
     const formData = new FormData()
     const webhookVal = (e.currentTarget.elements.namedItem('n8nWebhookUrl') as HTMLInputElement).value
     formData.append('n8nWebhookUrl', webhookVal)
-    formData.append('emergencyEmailDispatch', String(emergencyEmail))
+    formData.append('emergencyEmail', String(emergencyEmail))
     formData.append('autoAiIngestion', String(autoAi))
 
     try {
@@ -37,7 +36,7 @@ export default function SettingsClient({ initialSettings }: { initialSettings: S
       if (res.success) {
         setSuccessMsg('System configurations and webhook endpoint saved successfully.')
       } else {
-        setErrorMsg(res.error || 'Failed to save system settings.')
+        setErrorMsg(res.message || 'Failed to save system settings.')
       }
     } catch {
       setErrorMsg('An unexpected error occurred.')

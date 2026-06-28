@@ -2,41 +2,35 @@
 'use client'
 
 import React, { useState, useMemo, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import { 
-  Calendar,
-  X,
-  Phone,
-  Mail,
-  MapPin,
   Clock3,
   Sparkles,
-  ArrowRight,
-  Loader2,
   Globe,
   PlusCircle,
   Activity,
-  BellRing,
-  CheckCircle2,
-  CalendarCheck,
-  UserCheck,
   BellOff,
   Inbox,
-  AlertCircle
+  Mail
 } from 'lucide-react'
-import { 
-  ResponsiveContainer, 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  Tooltip, 
-  PieChart, 
-  Pie, 
-  Cell 
-} from 'recharts'
 import { createClient } from '../../lib/supabase/client'
 import { formatRelativeTime } from '../../lib/utils/time'
 import LeadDetailsDrawer from './LeadDetailsDrawer'
+
+// Feature 3 & 15: Lazily import charts with layout-stable skeleton fallbacks to prevent CLS
+const DashboardCharts = dynamic(() => import('./DashboardCharts'), {
+  ssr: false,
+  loading: () => (
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 select-none">
+      <div className="lg:col-span-8 h-90 bg-surface border border-border-custom rounded-card animate-pulse flex items-center justify-center text-xs text-text-secondary font-semibold">
+        Loading historical lead trend...
+      </div>
+      <div className="lg:col-span-4 h-90 bg-surface border border-border-custom rounded-card animate-pulse flex items-center justify-center text-xs text-text-secondary font-semibold">
+        Loading priority breakdown...
+      </div>
+    </div>
+  )
+})
 
 interface Lead {
   id: string
@@ -106,7 +100,7 @@ export default function DashboardClient({
 }: DashboardClientProps) {
   const supabase = createClient()
 
-  // Realtime Lists States (অপ্টিমাইজড উইথ সেফ ব্র্যাকেটস)
+  // Realtime Lists States (optimized with safe brackets fallback)
   const [leadsList, setLeadsList] = useState<Lead[]>(initialLeads || [])
   const [eventsList, setEventsList] = useState<LeadEvent[]>(initialEvents || [])
   const [appointmentsList, setAppointmentsList] = useState<Appointment[]>(initialAppointments || [])
@@ -120,9 +114,9 @@ export default function DashboardClient({
   const [timeFilter, setTimeFilter] = useState<'all' | 'today' | '7days' | '30days'>('all')
   const [priorityFilter, setPriorityFilter] = useState<string>('all')
   const [cityFilter, setCityFilter] = useState<string>('all')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [statusFilter] = useState<string>('all')
 
-  // ১. Supabase Realtime সাবস্ক্রিপশনস
+  // Realtime Active Sync setup
   useEffect(() => {
     const leadsChannel = supabase
       .channel('realtime-dashboard-leads-v3')
@@ -168,9 +162,9 @@ export default function DashboardClient({
       supabase.removeChannel(appChannel)
       supabase.removeChannel(remChannel)
     }
-  }, [])
+  }, [supabase])
 
-  // ২. ফিল্টারিং লজিক (সেফ any[] কাস্টিং সহ)
+  // Dynamic filter mappings
   const filteredLeads = useMemo(() => {
     const list = (leadsList || []) as any[]
     return list.filter((lead: any) => {
@@ -192,7 +186,7 @@ export default function DashboardClient({
 
   const uniqueCities = useMemo(() => Array.from(new Set((leadsList || []).map((l: any) => l.city))), [leadsList])
 
-  // ৩. ড্যাশবোর্ড কাস্টম অপারেশনাল KPI কার্ডস
+  // Feature 10 operational KPI calculations
   const metrics = useMemo(() => {
     const todayStr = new Date().toISOString().slice(0, 10)
     
@@ -204,7 +198,7 @@ export default function DashboardClient({
     return { todayApps, pendingReminders, overdueReminders, scheduledJobs }
   }, [filteredLeads, appointmentsList, remindersList])
 
-  // ৪. আজকের শিডিউল অ্যাপয়েন্টমেন্ট ডেটা (Implicit never ফিক্সড উইথ ফোর্সেড কাস্টিং)
+  // Feature 5 schedule mappings
   const todayAppointments = useMemo(() => {
     const todayStr = new Date().toISOString().slice(0, 10)
     const list = (appointmentsList || []) as any[]
@@ -221,7 +215,7 @@ export default function DashboardClient({
       })
   }, [appointmentsList, leadsList])
 
-  // ৫. আপকামিং এবং ওভারডিউ ফলো-আপ রিমাইন্ডার ডেটা
+  // Feature 6 upcoming reminders sorted mapping
   const upcomingReminders = useMemo(() => {
     const todayStr = new Date().toISOString().slice(0, 10)
     const list = (remindersList || []) as any[]
@@ -234,7 +228,7 @@ export default function DashboardClient({
       .sort((a: any, b: any) => new Date(a.reminder_date).getTime() - new Date(b.reminder_date).getTime())
   }, [remindersList])
 
-  // Charts mapping
+  // Area and Pie Chart data mapping (Feature 3)
   const leadTrendData = useMemo(() => {
     const last7Days = Array.from({ length: 7 }, (_, i) => {
       const d = new Date()
@@ -353,7 +347,7 @@ export default function DashboardClient({
             <h2 className="text-base font-bold tracking-tight text-text-primary">Today&apos;s Appointments Schedule</h2>
             <p className="text-xs text-text-secondary mt-0.5">Technician site visits scheduled for today.</p>
           </div>
-          <div className="flex-1 overflow-y-auto max-h-[250px] space-y-3 pr-1">
+          <div className="flex-1 overflow-y-auto max-h-62.5 space-y-3 pr-1">
             {todayAppointments.length > 0 ? (
               todayAppointments.map((appt: any) => (
                 <div key={appt.id} onClick={() => handleRowClick(leadsList.find(l => l.id === appt.lead_id)!)} className="flex items-center justify-between p-3 bg-background border border-border-custom rounded-card hover:border-primary-custom cursor-pointer transition-colors">
@@ -382,10 +376,10 @@ export default function DashboardClient({
             <h2 className="text-base font-bold tracking-tight text-text-primary">Upcoming Follow-up Reminders</h2>
             <p className="text-xs text-text-secondary mt-0.5">Chronologically sorted customer callback alerts.</p>
           </div>
-          <div className="flex-1 overflow-y-auto max-h-[250px] space-y-3 pr-1">
+          <div className="flex-1 overflow-y-auto max-h-62.5 space-y-3 pr-1">
             {upcomingReminders.length > 0 ? (
               upcomingReminders.map((rem: any) => (
-                <div key={rem.id} className={`flex items-center justify-between p-3 border rounded-card transition-colors ${rem.isOverdue ? 'bg-danger-custom/[0.02] border-danger-custom/30' : 'bg-background border-border-custom'}`}>
+                <div key={rem.id} className={`flex items-center justify-between p-3 border rounded-card transition-colors ${rem.isOverdue ? 'bg-danger-custom/2 border-danger-custom/30' : 'bg-background border-border-custom'}`}>
                   <div className="space-y-0.5 flex-1 min-w-0 pr-3">
                     <p className="text-xs font-semibold text-text-primary truncate">{rem.message}</p>
                     <p className="text-[10px] text-text-secondary font-medium">Due: {rem.reminder_date} at {rem.reminder_time}</p>
@@ -406,61 +400,12 @@ export default function DashboardClient({
 
       </div>
 
-      {/* Third Row: Recharts Trend area & Priority breakdown */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Trend chart */}
-        <div className="lg:col-span-8 bg-surface p-6 rounded-card border border-border-custom shadow-sm">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-base font-bold tracking-tight text-text-primary">Lead Traffic Trend</h2>
-              <p className="text-xs text-text-secondary mt-0.5">Ingested leads over the last 7 calendar days.</p>
-            </div>
-          </div>
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={leadTrendData}>
-                <XAxis dataKey="day" fontSize={11} tickLine={false} axisLine={false} stroke="#6B7280" />
-                <YAxis fontSize={11} tickLine={false} axisLine={false} stroke="#6B7280" />
-                <Tooltip contentStyle={{ backgroundColor: '#FFFFFF', borderColor: '#E5E7EB', borderRadius: '12px', fontSize: '12px' }} />
-                <Area type="monotone" dataKey="Leads" stroke="#2563EB" strokeWidth={2} fillOpacity={0.06} fill="#2563EB" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Priority distribution */}
-        <div className="lg:col-span-4 bg-surface p-6 rounded-card border border-border-custom shadow-sm flex flex-col justify-between">
-          <div>
-            <h2 className="text-base font-bold tracking-tight text-text-primary">Priority Breakdown</h2>
-            <p className="text-xs text-text-secondary mt-0.5">Severity distribution breakdown.</p>
-          </div>
-          
-          <div className="h-44 w-full relative flex items-center justify-center my-4">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={priorityChartData} cx="50%" cy="50%" innerRadius={55} outerRadius={75} paddingAngle={4} dataKey="value">
-                  {priorityChartData.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
-                </Pie>
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="absolute flex flex-col items-center">
-              <span className="text-2xl font-bold tracking-tight">{(filteredLeads || []).length}</span>
-              <span className="text-[10px] text-text-secondary font-medium tracking-wider uppercase">Leads</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            {priorityChartData.map((item) => (
-              <div key={item.name} className="flex items-center space-x-2">
-                <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
-                <span className="text-text-secondary font-medium">{item.name} ({item.value})</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-      </div>
+      {/* Third Row: Recharts Trend area & Priority breakdown - Dynamically Imported (Feature 3) */}
+      <DashboardCharts 
+        leadTrendData={leadTrendData}
+        priorityChartData={priorityChartData}
+        filteredLeadsLength={(filteredLeads || []).length}
+      />
 
       {/* Fourth Row: Recent leads & Recent Activity Feed */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -525,7 +470,7 @@ export default function DashboardClient({
             <h2 className="text-base font-bold tracking-tight text-text-primary">Recent Activity Feed</h2>
             <p className="text-xs text-text-secondary mt-0.5">Real-time audit log of active leads.</p>
           </div>
-          <div className="flex-1 space-y-4 overflow-y-auto max-h-[350px] pr-1">
+          <div className="flex-1 space-y-4 overflow-y-auto max-h-87.5 pr-1">
             {eventsList.length > 0 ? (
               eventsList.map((evt) => (
                 <div key={evt.id} className="flex items-start space-x-3 text-sm p-1 hover:bg-background/40 rounded-lg transition-colors">
