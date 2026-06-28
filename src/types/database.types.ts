@@ -166,6 +166,78 @@ export interface Database {
           note?: string
           created_at?: string
         }
+        // src/types/database.types.ts ফাইলের Tables অবজেক্টের ভেতরে এই ২টি ব্লক পেস্ট করুন:
+
+      appointments: {
+        Row: {
+          id: string
+          lead_id: string
+          appointment_date: string
+          appointment_time: string
+          appointment_type: string
+          status: 'Scheduled' | 'Confirmed' | 'Rescheduled' | 'Completed' | 'Cancelled'
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          lead_id: string
+          appointment_date: string
+          appointment_time: string
+          appointment_type: string
+          status: 'Scheduled' | 'Confirmed' | 'Rescheduled' | 'Completed' | 'Cancelled'
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          lead_id?: string
+          appointment_date?: string
+          appointment_time?: string
+          appointment_type?: string
+          status?: 'Scheduled' | 'Confirmed' | 'Rescheduled' | 'Completed' | 'Cancelled'
+          notes?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      reminders: {
+        Row: {
+          id: string
+          lead_id: string
+          reminder_date: string
+          reminder_time: string
+          priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+          message: string
+          status: 'Pending' | 'Completed' | 'Overdue'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          lead_id: string
+          reminder_date: string
+          reminder_time: string
+          priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+          message: string
+          status?: 'Pending' | 'Completed' | 'Overdue'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          lead_id?: string
+          reminder_date?: string
+          reminder_time?: string
+          priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+          message?: string
+          status?: 'Pending' | 'Completed' | 'Overdue'
+          created_at?: string
+          updated_at?: string
+        }
+      }
       }
     }
   }

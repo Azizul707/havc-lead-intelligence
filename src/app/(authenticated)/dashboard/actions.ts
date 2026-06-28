@@ -3,167 +3,516 @@
 
 import { createClient } from '../../../lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { logger } from '../../../lib/logger'
+import { handleServerError, AppError, ServerResponse } from '../../../lib/errors'
+import { appointmentSchema, noteSchema, reminderSchema } from '../../../lib/schemas'
 
-// ১. V2 Quick Actions Trigger & Webhook Proxy Handler (ডাইনামিক সেটিংস ম্যাপ সহ)
+/**
+ * FEATURE V2: Quick Actions Trigger & Webhook Proxy Handler.
+ * Executes specific operations on a lead, updates status, and dispatches webhook.
+ */
 export async function triggerLeadAction(
   leadId: string, 
   actionType: 'call' | 'email' | 'contact' | 'schedule' | 'complete'
-) {
-  const supabase = await createClient()
+): Promise<ServerResponse> {
+  try {
+    const supabase = await createClient()
 
-  // সেশন ভ্যালিডেশন
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return { success: false, error: 'Unauthorized. Please sign in again.' }
-  }
+    // 1. Session and auth verification
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      throw new AppError('Unauthorized access. Please sign in again.', 'UNAUTHORIZED')
+    }
 
-  // কারেন্ট লিড ডেটা রিড করা
-  const { data: lead, error: fetchError } = await (supabase.from('hvac_leads') as any)
-    .select('*')
-    .eq('id', leadId)
-    .single()
+    // 2. Fetch specific lead details safely
+    const { data: lead, error: fetchError } = await (supabase.from('hvac_leads') as any)
+      .select('*')
+      .eq('id', leadId)
+      .single()
 
-  if (fetchError || !lead) {
-    return { success: false, error: 'Failed to retrieve lead details.' }
-  }
+    if (fetchError || !lead) {
+      throw new AppError('Failed to retrieve active lead details from the database.', 'NOT_FOUND')
+    }
 
-  // অ্যাকশন অনুযায়ী স্ট্যাটাস ও ইভেন্ট টাইপ ম্যাপিং (DATABASE.md অনুযায়ী)
-  let newStatus: string = lead.status
-  let eventType = 'CUSTOMER_CONTACTED'
-  let description = ''
+    // 3. Map CRM action to status and activity event logging
+    let newStatus: string = lead.status
+    let eventType = 'CUSTOMER_CONTACTED'
+    let description = ''
 
-  switch (actionType) {
-    case 'call':
-      eventType = 'CUSTOMER_CONTACTED'
-      description = `Called customer ${lead.customer_name} via dispatch console.`
-      break
-    case 'email':
-      eventType = 'EMAIL_SENT'
-      description = `Emailed lead details to ${lead.customer_name}.`
-      break
-    case 'contact':
-      newStatus = 'CONTACTED'
-      eventType = 'CUSTOMER_CONTACTED'
-      description = `Lead marked as Contacted by dispatch.`
-      break
-    case 'schedule':
-      newStatus = 'SCHEDULED'
-      eventType = 'JOB_SCHEDULED'
-      description = `Technician appointment scheduled for customer.`
-      break
-    case 'complete':
-      newStatus = 'COMPLETED'
-      eventType = 'JOB_COMPLETED'
-      description = `Job marked as completed successfully by technician.`
-      break
-  }
+    switch (actionType) {
+      case 'call':
+        eventType = 'CUSTOMER_CONTACTED'
+        description = `Called customer ${lead.customer_name} via dispatcher console.`
+        break
+      case 'email':
+        eventType = 'EMAIL_SENT'
+        description = `Emailed lead details to ${lead.customer_name}.`
+        break
+      case 'contact':
+        newStatus = 'CONTACTED'
+        eventType = 'CUSTOMER_CONTACTED'
+        description = `Lead marked as Contacted by system dispatcher.`
+        break
+      case 'schedule':
+        newStatus = 'SCHEDULED'
+        eventType = 'JOB_SCHEDULED'
+        description = `Technician appointment site visit scheduled.`
+        break
+      case 'complete':
+        newStatus = 'COMPLETED'
+        eventType = 'JOB_COMPLETED'
+        description = `HVAC job completed successfully by on-site technician.`
+        break
+    }
 
-  // ইউজারের নিজস্ব প্রোফাইল সেটিংস থেকে ডাইনামিক Webhook URL রিড করা
-  const { data: profile } = await (supabase.from('profiles') as any)
-    .select('n8n_webhook_url')
-    .eq('id', user.id)
-    .single()
+    // 4. Fetch the custom webhook URL if saved in tenant profile
+    const { data: profile } = await (supabase.from('profiles') as any)
+      .select('n8n_webhook_url')
+      .eq('id', user.id)
+      .single()
 
-  // সেটিংস পেজে সেভ করা কাস্টম URL ব্যবহার হবে, না থাকলে .env.local ফেইলব্যাক থাকবে
-  const n8nWebhookUrl = profile?.n8n_webhook_url || process.env.N8N_WEBHOOK_URL
+    const n8nWebhookUrl = profile?.n8n_webhook_url || process.env.N8N_WEBHOOK_URL
 
-  // n8n Webhook সিকিউর কল (সার্ভার সাইড থেকে প্রক্সি)
-  if (n8nWebhookUrl) {
-    try {
-      await fetch(n8nWebhookUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              action: actionType,
-              leadId: lead.id,
-              customerName: lead.customer_name,
-              phone: lead.phone,
-              email: lead.email,
-              city: lead.city,
-              issue: lead.issue_description,
-              previousStatus: lead.status,
-              newStatus: newStatus,
-              triggeredBy: user.id
-            }),
-          })
-        } catch (webhookErr) {
-          console.error('Failed to dispatch webhook to n8n:', webhookErr)
+    // 5. Trigger n8n webhook securely on the backend server side
+    if (n8nWebhookUrl) {
+      try {
+        const response = await fetch(n8nWebhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: actionType,
+            leadId: lead.id,
+            customerName: lead.customer_name,
+            phone: lead.phone,
+            email: lead.email,
+            city: lead.city,
+            issue: lead.issue_description,
+            previousStatus: lead.status,
+            newStatus: newStatus,
+            triggeredBy: user.id
+          }),
+        })
+
+        if (!response.ok) {
+          logger.warn(`n8n webhook responded with non-2xx status on action: ${actionType}`, { status: response.status })
         }
+      } catch (webhookErr) {
+        logger.error(`Failed to dispatch background webhook on action: ${actionType}`, webhookErr as Error)
       }
+    }
 
-  // স্ট্যাটাস পরিবর্তন হলে Supabase-এ আপডেট করা
-  if (newStatus !== lead.status) {
+    // 6. Sync status update inside Supabase
+    if (newStatus !== lead.status) {
+      const { error: updateError } = await (supabase.from('hvac_leads') as any)
+        .update({ status: newStatus })
+        .eq('id', leadId)
+
+      if (updateError) {
+        throw new AppError(`Failed to update lead status: ${updateError.message}`, 'DB_UPDATE_ERROR')
+      }
+    }
+
+    // 7. Insert the event tracking history audit record
+    const { error: eventError } = await (supabase.from('lead_events') as any)
+      .insert({
+        lead_id: leadId,
+        event_type: eventType,
+        description: description,
+        metadata: {
+          action_type: actionType,
+          webhook_dispatched: !!n8nWebhookUrl
+        },
+        created_by: user.id
+      })
+
+    if (eventError) {
+      logger.error(`Database failed to log lead event for action: ${actionType}`, eventError as any)
+    }
+
+    logger.info(`Lead action successfully executed: ${actionType} on lead ${leadId}`)
+
+    revalidatePath('/dashboard')
+    revalidatePath('/leads')
+    revalidatePath('/crm')
+
+    return { 
+      success: true, 
+      message: `Action ${actionType.toUpperCase()} completed successfully.`, 
+      data: { newStatus } 
+    }
+  } catch (err) {
+    return handleServerError(err, `Failed to execute ${actionType} action on lead.`)
+  }
+}
+
+/**
+ * FEATURE V3: CRM board native HTML5 Drag and Drop direct status updates.
+ */
+export async function updateLeadStatusDirectly(
+  leadId: string, 
+  newStatus: 'NEW' | 'CONTACTED' | 'SCHEDULED' | 'COMPLETED' | 'LOST', 
+  previousStatus: string
+): Promise<ServerResponse> {
+  try {
+    const supabase = await createClient()
+
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) {
+      throw new AppError('Unauthorized access. Please login.', 'UNAUTHORIZED')
+    }
+
+    // Update status in hvac_leads
     const { error: updateError } = await (supabase.from('hvac_leads') as any)
       .update({ status: newStatus })
       .eq('id', leadId)
 
     if (updateError) {
-      return { success: false, error: 'Failed to update status: ' + updateError.message }
+      throw new AppError(`Failed to sync status: ${updateError.message}`, 'DB_UPDATE_ERROR')
     }
-  }
 
-  // lead_events টেবিলে ইভেন্ট রেকর্ড যুক্ত করা
-  const { error: eventError } = await (supabase.from('lead_events') as any)
-    .insert({
+    // Log the action event
+    const { error: eventError } = await (supabase.from('lead_events') as any).insert({
       lead_id: leadId,
-      event_type: eventType,
-      description: description,
-      metadata: {
-        action_type: actionType,
-        webhook_dispatched: !!n8nWebhookUrl
-      },
+      event_type: 'STATUS_CHANGED',
+      description: `Lead status updated from ${previousStatus} to ${newStatus} via pipeline board.`,
+      metadata: { previous_status: previousStatus, new_status: newStatus },
       created_by: user.id
     })
 
-  if (eventError) {
-    console.error('Event logging error:', eventError)
+    if (eventError) {
+      logger.error('Failed to log drag and drop lead event', eventError as any)
+    }
+
+    logger.info(`Lead status directly modified: ${leadId} from ${previousStatus} to ${newStatus}`)
+
+    revalidatePath('/dashboard')
+    revalidatePath('/leads')
+    revalidatePath('/crm')
+    
+    return { success: true, message: `Status updated successfully to ${newStatus}.` }
+  } catch (err) {
+    return handleServerError(err, 'Failed to update lead pipeline status.')
   }
-
-  revalidatePath('/dashboard')
-  revalidatePath('/leads')
-
-  return { success: true, newStatus }
 }
 
-// ২. V3 Drag & Drop Board সরাসরি স্ট্যাটাস আপডেট করার অ্যাকশন
-export async function updateLeadStatusDirectly(
-  leadId: string, 
-  newStatus: 'NEW' | 'CONTACTED' | 'SCHEDULED' | 'COMPLETED' | 'LOST', 
-  previousStatus: string
-) {
-  const supabase = await createClient()
+/**
+ * FEATURE V2: CRM Bulk update operations.
+ */
+export async function bulkUpdateLeadStatus(
+  leadIds: string[], 
+  newStatus: 'NEW' | 'CONTACTED' | 'SCHEDULED' | 'COMPLETED' | 'LOST'
+): Promise<ServerResponse> {
+  try {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new AppError('Unauthorized.', 'UNAUTHORIZED')
 
-  // সেশন চেক
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) {
-    return { success: false, error: 'Unauthorized.' }
+    if (!leadIds || leadIds.length === 0) {
+      throw new AppError('No items selected for bulk modification.', 'BAD_REQUEST')
+    }
+
+    const { error } = await (supabase.from('hvac_leads') as any)
+      .update({ status: newStatus })
+      .in('id', leadIds)
+
+    if (error) throw new AppError(`Bulk status sync failed: ${error.message}`, 'DB_UPDATE_ERROR')
+
+    // Batch log bulk action history
+    const { error: bulkEventErr } = await (supabase.from('lead_events') as any).insert(
+      leadIds.map(id => ({
+        lead_id: id,
+        event_type: 'STATUS_CHANGED',
+        description: `Lead status updated to ${newStatus} via bulk operations toolbar.`,
+        metadata: { bulk: true, new_status: newStatus },
+        created_by: user.id
+      }))
+    )
+
+    if (bulkEventErr) {
+      logger.error('Failed to record bulk lead change history events', bulkEventErr as any)
+    }
+
+    logger.info(`Bulk status update succeeded for ${leadIds.length} leads to ${newStatus}`)
+
+    revalidatePath('/dashboard')
+    revalidatePath('/leads')
+    revalidatePath('/crm')
+    
+    return { success: true, message: `Bulk status update succeeded for ${leadIds.length} leads.` }
+  } catch (err) {
+    return handleServerError(err, 'Bulk status modification failed.')
   }
+}
 
-  // Supabase-এ স্ট্যাটাস আপডেট
-  const { error: updateError } = await (supabase.from('hvac_leads') as any)
-    .update({ status: newStatus })
-    .eq('id', leadId)
+export async function bulkDeleteLeads(leadIds: string[]): Promise<ServerResponse> {
+  try {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new AppError('Unauthorized.', 'UNAUTHORIZED')
 
-  if (updateError) {
-    return { success: false, error: 'Failed to update lead status: ' + updateError.message }
+    if (!leadIds || leadIds.length === 0) {
+      throw new AppError('No items selected for deletion.', 'BAD_REQUEST')
+    }
+
+    const { error } = await (supabase.from('hvac_leads') as any)
+      .delete()
+      .in('id', leadIds)
+
+    if (error) throw new AppError(`Bulk delete operations failed: ${error.message}`, 'DB_DELETE_ERROR')
+
+    logger.info(`Bulk deleted ${leadIds.length} leads successfully from secure console`)
+
+    revalidatePath('/dashboard')
+    revalidatePath('/leads')
+    revalidatePath('/crm')
+    
+    return { success: true, message: `Successfully deleted ${leadIds.length} leads.` }
+  } catch (err) {
+    return handleServerError(err, 'Bulk delete operation was rejected.')
   }
+}
 
-  // lead_events টেবিলে STATUS_CHANGED ইভেন্ট রেকর্ড যুক্ত করা
-  await (supabase.from('lead_events') as any).insert({
-    lead_id: leadId,
-    event_type: 'STATUS_CHANGED',
-    description: `Lead status updated from ${previousStatus} to ${newStatus} via CRM board.`,
-    metadata: {
-      previous_status: previousStatus,
-      new_status: newStatus
-    },
-    created_by: user.id
-  })
+// ==========================================
+// SPRINT 03: NEW DISPATCHER OPERATIONS ACTIONS
+// ==========================================
 
-  revalidatePath('/dashboard')
-  revalidatePath('/leads')
-  
-  return { success: true }
+/**
+ * FEATURE S3: Booking appointments for site visits.
+ * Standardized with Zod Schema Validation & Input Sanitization (Feature 3, 9)
+ */
+export async function scheduleAppointment(
+  leadId: string,
+  date: string,
+  time: string,
+  type: string,
+  notes: string
+): Promise<ServerResponse> {
+  try {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new AppError('Unauthorized session. Please login.', 'UNAUTHORIZED')
+
+    // Server-Side Zod validation & Sanitization (Feature 4, 9)
+    const parsed = appointmentSchema.safeParse({ date, time, type, notes })
+    if (!parsed.success) {
+      const issueMessage = parsed.error.issues[0]?.message ?? 'Invalid input'
+      throw new AppError(`Input validation failed: ${issueMessage}`, 'VALIDATION_ERROR')
+    }
+    const validated = parsed.data
+
+    // 1. Insert appointment record
+    const { error: appError } = await (supabase.from('appointments') as any)
+      .insert({
+        lead_id: leadId,
+        appointment_date: validated.date,
+        appointment_time: validated.time,
+        appointment_type: validated.type,
+        status: 'Scheduled',
+        notes: validated.notes || null
+      })
+
+    if (appError) throw new AppError(`Failed to insert appointment record: ${appError.message}`, 'DB_INSERT_ERROR')
+
+    // 2. Set the lead status in main table to SCHEDULED
+    const { error: leadError } = await (supabase.from('hvac_leads') as any)
+      .update({ status: 'SCHEDULED' })
+      .eq('id', leadId)
+
+    if (leadError) throw new AppError(`Failed to update main lead status: ${leadError.message}`, 'DB_UPDATE_ERROR')
+
+    // 3. Log the status changed / appointment booked timeline event
+    await (supabase.from('lead_events') as any).insert({
+      lead_id: leadId,
+      event_type: 'STATUS_CHANGED',
+      description: `Technician site visit booked for ${validated.date} at ${validated.time} (${validated.type}).`,
+      metadata: { appointment_date: validated.date, appointment_time: validated.time, appointment_type: validated.type },
+      created_by: user.id
+    })
+
+    logger.info(`Appointment visit scheduled for lead ${leadId} on ${validated.date}`)
+
+    revalidatePath('/dashboard')
+    revalidatePath('/leads')
+    revalidatePath('/crm')
+    
+    return { success: true, message: 'Site visit appointment scheduled successfully.' }
+  } catch (err) {
+    return handleServerError(err, 'Appointment scheduling was aborted.')
+  }
+}
+
+/**
+ * FEATURE S3: Adding internal dispatcher note widgets.
+ * Standardized with Zod Schema Validation & Input Sanitization (Feature 3, 9)
+ */
+export async function addLeadNote(leadId: string, noteText: string): Promise<ServerResponse> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return { success: false, message: 'Unauthorized.', error: { code: 'UNAUTHORIZED' } }
+    }
+
+    // Server-Side Zod validation
+    const parsed = noteSchema.safeParse({ note: noteText })
+    if (!parsed.success) {
+      return {
+        success: false,
+        message: 'Note text cannot be empty or blank',
+        error: { code: 'VALIDATION_ERROR' }
+      }
+    }
+
+    const validatedNote = parsed.data.note
+
+    const { error: noteError } = await (supabase.from('lead_notes') as any)
+      .insert({
+        lead_id: leadId,
+        user_id: user.id,
+        note: validatedNote
+      })
+
+    if (noteError) throw new AppError(`Note insertion rejected: ${noteError.message}`, 'DB_INSERT_ERROR')
+
+    // Record timeline audit trail
+    await (supabase.from('lead_events') as any).insert({
+      lead_id: leadId,
+      event_type: 'NOTE_ADDED',
+      description: `Dispatcher logged an internal note: "${validatedNote.substring(0, 30)}${validatedNote.length > 30 ? '...' : ''}"`,
+      created_by: user.id
+    })
+
+    logger.info(`Note added successfully to lead ${leadId} by dispatcher ${user.id}`)
+
+    revalidatePath('/dashboard')
+    revalidatePath('/leads')
+    revalidatePath('/crm')
+    
+    return { success: true, message: 'Internal dispatcher note saved successfully.' }
+  } catch (err) {
+    return handleServerError(err, 'Failed to save dispatcher note.')
+  }
+}
+
+export async function deleteLeadNote(noteId: string, leadId: string): Promise<ServerResponse> {
+  try {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new AppError('Unauthorized.', 'UNAUTHORIZED')
+
+    // Delete note
+    const { error } = await (supabase.from('lead_notes') as any)
+      .delete()
+      .eq('id', noteId)
+
+    if (error) throw new AppError(`Failed to delete note record: ${error.message}`, 'DB_DELETE_ERROR')
+
+    // Record timeline audit
+    await (supabase.from('lead_events') as any).insert({
+      lead_id: leadId,
+      event_type: 'STATUS_CHANGED',
+      description: `Internal dispatch note record was deleted from lead console.`,
+      created_by: user.id
+    })
+
+    logger.info(`Note ${noteId} deleted successfully from lead ${leadId}`)
+
+    revalidatePath('/dashboard')
+    revalidatePath('/leads')
+    revalidatePath('/crm')
+    
+    return { success: true, message: 'Note deleted.' }
+  } catch (err) {
+    return handleServerError(err, 'Dispatcher note deletion was aborted.')
+  }
+}
+
+/**
+ * FEATURE S3: Setting follow-up reminders.
+ * Standardized with Zod Schema Validation & Input Sanitization (Feature 3, 9)
+ */
+export async function createReminder(
+  leadId: string,
+  date: string,
+  time: string,
+  priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL',
+  message: string
+): Promise<ServerResponse> {
+  try {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new AppError('Unauthorized.', 'UNAUTHORIZED')
+
+    // Server-Side Zod validation & Sanitization (Feature 4, 9)
+    const parsed = reminderSchema.safeParse({ date, time, priority, message })
+    if (!parsed.success) {
+      const issueMessage = parsed.error.issues[0]?.message ?? 'Invalid input'
+      throw new AppError(`Input validation failed: ${issueMessage}`, 'VALIDATION_ERROR')
+    }
+    const validated = parsed.data
+
+    // Insert reminder record securely
+    const { error: remError } = await (supabase.from('reminders') as any)
+      .insert({
+        lead_id: leadId,
+        reminder_date: validated.date,
+        reminder_time: validated.time,
+        priority: validated.priority,
+        message: validated.message,
+        status: 'Pending'
+      })
+
+    if (remError) throw new AppError(`Failed to save reminder record: ${remError.message}`, 'DB_INSERT_ERROR')
+
+    // Record timeline audit
+    await (supabase.from('lead_events') as any).insert({
+      lead_id: leadId,
+      event_type: 'NOTE_ADDED',
+      description: `Dispatcher set a follow-up reminder: "${validated.message}" scheduled for ${validated.date} at ${validated.time}.`,
+      created_by: user.id
+    })
+
+    logger.info(`Follow-up reminder successfully registered for lead ${leadId} on ${validated.date}`)
+
+    revalidatePath('/dashboard')
+    revalidatePath('/leads')
+    revalidatePath('/crm')
+    
+    return { success: true, message: 'Follow-up reminder registered successfully.' }
+  } catch (err) {
+    return handleServerError(err, 'Failed to create follow-up reminder.')
+  }
+}
+
+export async function completeReminder(reminderId: string, leadId: string): Promise<ServerResponse> {
+  try {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new AppError('Unauthorized.', 'UNAUTHORIZED')
+
+    // Mark reminder Completed
+    const { error } = await (supabase.from('reminders') as any)
+      .update({ status: 'Completed', updated_at: new Date().toISOString() })
+      .eq('id', reminderId)
+
+    if (error) throw new AppError(`Failed to complete reminder record: ${error.message}`, 'DB_UPDATE_ERROR')
+
+    // Record timeline audit
+    await (supabase.from('lead_events') as any).insert({
+      lead_id: leadId,
+      event_type: 'STATUS_CHANGED',
+      description: `Follow-up reminder was marked completed.`,
+      created_by: user.id
+    })
+
+    logger.info(`Reminder ${reminderId} completed successfully on lead ${leadId}`)
+
+    revalidatePath('/dashboard')
+    revalidatePath('/leads')
+    revalidatePath('/crm')
+    
+    return { success: true, message: 'Reminder marked completed.' }
+  } catch (err) {
+    return handleServerError(err, 'Failed to update reminder status.')
+  }
 }
