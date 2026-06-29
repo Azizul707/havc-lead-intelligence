@@ -1,36 +1,162 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# HVAC AI Lead Intelligence Platform
 
-## Getting Started
+**Production-grade SaaS platform for HVAC companies in the United States, Canada, and Australia.**
 
-First, run the development server:
+Receive HVAC leads from n8n, store them in Supabase, display them in a professional dashboard, and provide AI-powered lead intelligence — all in a deployable template that can be set up for a new client in under one hour.
+
+---
+
+## Quick Start
 
 ```bash
+# 1. Install dependencies
+npm install
+
+# 2. Run the interactive setup wizard
+npm run setup
+
+# 3. Start the development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to see the application.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Deployment Overview
 
-## Learn More
+Each client gets their own isolated deployment:
 
-To learn more about Next.js, take a look at the following resources:
+| Component | How |
+|-----------|-----|
+| **GitHub Repository** | Clone this template → push to client repo |
+| **Database** | New Supabase project → run `supabase/install.sql` |
+| **AI** | OpenRouter API key → configure in environment |
+| **Automation** | New n8n instance → import `n8n/workflows/` |
+| **Hosting** | Vercel project → configure environment → deploy |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Tech Stack
 
-## Deploy on Vercel
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 16 (App Router) |
+| UI | React 19 + Tailwind CSS 4 + shadcn/ui |
+| Database | Supabase (PostgreSQL) with RLS |
+| Auth | Supabase Auth (email/password) |
+| AI | OpenRouter API (via n8n) |
+| Automation | n8n workflows |
+| Hosting | Vercel |
+| Charts | Recharts |
+| Tables | TanStack Table |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Project Structure
+
+```
+├── config/              ← Centralized configuration (branding, client, env)
+├── docs/                ← Architecture, deployment, maintenance guides
+├── n8n/                 ← n8n workflow package (importable JSON)
+├── scripts/             ← CLI tools (setup, validate, branding wizard)
+├── src/                 ← Application source code
+│   ├── app/             ← Next.js App Router pages
+│   ├── components/      ← Reusable UI components
+│   ├── lib/             ← Utilities, Supabase clients, schemas
+│   └── types/           ← TypeScript type definitions
+├── supabase/            ← Database installer, seed data, verification
+├── .env.example         ← Environment variable template
+├── AGENTS.md            ← Project specifications and requirements
+└── DATABASE_INSTALL.md  ← Database setup guide
+```
+
+---
+
+## Features
+
+### Dashboard
+- Total leads, today's leads, critical/high priority counts
+- Lead score averages and response time tracking
+- Charts: leads by day, priority distribution, service type, job value
+- Real-time activity feed and recent leads table
+
+### Lead Management
+- Server-side paginated lead table
+- Search, filter, sort across all lead fields
+- CSV export for selected leads
+- AI-powered lead scoring and priority assignment
+- Detailed lead view with customer info, AI summary, and timeline
+
+### CRM Board
+- Kanban-style pipeline management
+- Drag-and-drop status updates
+- Quick actions: call, contact, schedule, complete
+- Bulk operations: status updates and deletions
+
+### Analytics
+- Daily/weekly/monthly lead trends
+- Geographic distribution by city
+- Service type breakdown
+- Priority and lead quality analysis
+
+### AI Intelligence
+- OpenRouter-powered lead analysis
+- Automatic lead scoring (0–100)
+- Priority classification (LOW → CRITICAL)
+- Customer intent detection
+- Summary and recommended actions
+
+---
+
+## Scripts Reference
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Start development server |
+| `npm run build` | Build for production |
+| `npm run start` | Start production server |
+| `npm run lint` | Run ESLint |
+| `npm run setup` | Interactive configuration wizard |
+| `npm run validate` | Validate environment configuration |
+| `npm run branding` | Configure company branding |
+| `npm run verify-build` | Run lint + typecheck + build |
+
+---
+
+## Documentation
+
+| Guide | Description |
+|-------|-------------|
+| [Architecture Overview](docs/ARCHITECTURE.md) | System architecture and data flow |
+| [Local Development](docs/LOCAL_DEV.md) | Setup and run locally |
+| [Vercel Deployment](docs/DEPLOYMENT_VERCEL.md) | Deploy to production |
+| [Database Installation](DATABASE_INSTALL.md) | Set up Supabase database |
+| [Configuration Guide](config/README.md) | Branding, client, and env config |
+| [Production Checklist](docs/PRODUCTION_CHECKLIST.md) | Go-live verification |
+| [Maintenance Guide](docs/MAINTENANCE.md) | Ongoing maintenance |
+
+---
+
+## Sprint History
+
+| Sprint | Deliverable |
+|--------|-------------|
+| **01** | Core application setup, authentication, routing |
+| **02** | Dashboard, charts, real-time data |
+| **03** | Lead management, CRM board, dispatcher operations |
+| **04** | Analytics, settings, profile, project hardening |
+| **05.1** | Centralized configuration system |
+| **05.2** | Database installer, seed data, verification |
+| **05.3** | n8n workflow package, webhook configuration |
+| **05.4** | Setup wizard, deployment scripts, documentation |
+
+---
+
+## License
+
+Private — Commercial use. All rights reserved.
+
+---
+
+*Built with Next.js 16, Supabase, and n8n*

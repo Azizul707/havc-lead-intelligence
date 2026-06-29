@@ -1,0 +1,99 @@
+{
+  "name": "Sample Workflow Template",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sample-workflow",
+        "responseMode": "onReceived",
+        "responseData": "",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Custom logic goes here\n// Access payload: $input.first().json.body\n// Access env vars: $env.YOUR_VAR\n// Return JSON for next node\n\nconst payload = $input.first().json.body;\nconsole.log('[TEMPLATE] Received:', JSON.stringify(payload));\n\nreturn {\n  message: 'Hello from template',\n  original_payload: payload,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "custom-logic",
+      "name": "Custom Logic",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "",
+        "options": {}
+      },
+      "id": "supabase-action",
+      "name": "Supabase Action",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "credentials": {
+        "supabaseApi": "Supabase API"
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "console.log('[TEMPLATE COMPLETE] Workflow executed successfully');\nreturn $input.first().json;"
+      },
+      "id": "log-complete",
+      "name": "Log Completion",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const error = $input.first().json.error || 'Workflow failed';\nconsole.error('[TEMPLATE ERROR]', error.message || error);\nreturn { success: false, error: error.message || error };"
+      },
+      "id": "error-handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 500],
+      "onError": "continueErrorOutput"
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [[{ "node": "Custom Logic", "type": "main", "index": 0 }]]
+    },
+    "Custom Logic": {
+      "main": [[{ "node": "Supabase Action", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "Error Handler", "type": "main", "index": 0 }]]
+    },
+    "Supabase Action": {
+      "main": [[{ "node": "Log Completion", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "Error Handler", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "UTC",
+    "retryOnFail": true,
+    "maxTries": 2,
+    "waitBetweenTries": 5000
+  },
+  "staticData": null,
+  "tags": [
+    { "name": "template" }
+  ],
+  "versionId": "1.0.0",
+  "metadata": {
+    "version": "1.0.0",
+    "description": "Empty workflow template for custom automations. Replace with your own logic.",
+    "requiredEnv": [],
+    "triggerType": "webhook",
+    "lastUpdated": "2026-06-29"
+  }
+}

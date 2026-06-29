@@ -1,0 +1,84 @@
+{
+  "name": "Webhook Dispatcher",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "webhook-dispatcher",
+        "responseMode": "onReceived",
+        "responseData": "",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Receiver",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse incoming webhook payload and determine routing\nconst payload = $input.first().json.body;\n\nif (!payload.action) {\n  throw new Error('Missing required field: action');\n}\n\n// Route based on action type\nconst routeMap = {\n  'lead_created': { workflow: 'lead-ingestion', type: 'ingestion' },\n  'ai_analysis': { workflow: 'ai-lead-analysis', type: 'ai' },\n  'send_notification': { workflow: 'send-notification', type: 'notification' },\n  'schedule_appointment': { workflow: 'schedule-appointment', type: 'scheduling' },\n  'status_update': { workflow: 'webhook-dispatcher', type: 'status' }\n};\n\nconst route = routeMap[payload.action];\nif (!route) {\n  console.log('[DISPATCHER] Unknown action:', payload.action, '- passing through');\n}\n\nconsole.log('[DISPATCHER] Routing action:', payload.action, 'to:', route?.workflow || 'passthrough');\n\nreturn {\n  received: true,\n  action: payload.action,\n  route: route || { workflow: 'unknown', type: 'passthrough' },\n  data: payload.data || payload,\n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "route-action",
+      "name": "Route Action",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log the dispatched action\nconst log = {\n  workflow: 'Webhook Dispatcher',\n  action: 'dispatch',\n  action_type: $json.action,\n  route: $json.route?.workflow || 'passthrough',\n  status: 'success',\n  timestamp: $json.timestamp\n};\nconsole.log('[DISPATCHER]', JSON.stringify(log));\n\nreturn {\n  success: true,\n  dispatched: true,\n  action: $json.action,\n  routing: $json.route,\n  payload_received: !!$json.received\n};"
+      },
+      "id": "log-dispatch",
+      "name": "Log Dispatch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const error = $input.first().json.error || 'Webhook dispatch failed';\nconsole.error('[DISPATCHER ERROR]', error.message || error);\nreturn { success: false, error: error.message || error };"
+      },
+      "id": "error-handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 500],
+      "onError": "continueErrorOutput"
+    }
+  ],
+  "connections": {
+    "Webhook Receiver": {
+      "main": [[{ "node": "Route Action", "type": "main", "index": 0 }]]
+    },
+    "Route Action": {
+      "main": [[{ "node": "Log Dispatch", "type": "main", "index": 0 }]]
+    },
+    "Route Action": {
+      "error": [[{ "node": "Error Handler", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "UTC",
+    "retryOnFail": true,
+    "maxTries": 2,
+    "waitBetweenTries": 3000
+  },
+  "staticData": null,
+  "tags": [
+    { "name": "core" },
+    { "name": "dispatcher" },
+    { "name": "production" }
+  ],
+  "versionId": "1.1.0",
+  "metadata": {
+    "version": "1.1.0",
+    "description": "Central webhook dispatcher that routes incoming actions to the correct workflow based on action type",
+    "requiredEnv": [],
+    "triggerType": "webhook",
+    "lastUpdated": "2026-06-29"
+  }
+}

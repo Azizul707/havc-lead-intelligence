@@ -50,8 +50,3 @@ export default function GlobalError({
     </html>
   )
 }
-
-// Inline fallback for the RotateCcw mapping if needed
-function RotateCcwIcon({ className }: { className?: string }) {
-  return <RotateCcw className={className} />
-}

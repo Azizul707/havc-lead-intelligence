@@ -2,12 +2,12 @@
 'use client'
 
 import React, { useState, useMemo, useEffect } from 'react'
-import { 
-  ListFilter, KanbanSquare, Download, Search, MapPin, Globe, ArrowUpDown, 
-  SlidersHorizontal, CheckSquare, Square, Trash2, ShieldAlert, FolderOpen, Loader2 // Loader2 ইম্পোর্টে যুক্ত করা হলো
+import {
+  Download, Search, Globe, ArrowUpDown,
+  SlidersHorizontal, CheckSquare, Square, Trash2, ShieldAlert, FolderOpen, Loader2
 } from 'lucide-react'
 import { createClient } from '../../../lib/supabase/client'
-import { updateLeadStatusDirectly, bulkUpdateLeadStatus, bulkDeleteLeads } from '../dashboard/actions'
+import { bulkUpdateLeadStatus, bulkDeleteLeads } from '../dashboard/actions'
 import LeadDetailsDrawer from '../../../components/dashboard/LeadDetailsDrawer'
 
 interface Lead {
@@ -82,7 +82,7 @@ export default function LeadsClient({ initialLeads }: LeadsClientProps) {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [])
+  }, [supabase])
 
   // ড্রপডাউন ইউনিক ফিল্টার লিস্ট জেনারেটর
   const uniqueCities = useMemo(() => Array.from(new Set(leadsList.map(l => l.city))), [leadsList])

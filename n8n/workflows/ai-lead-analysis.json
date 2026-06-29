@@ -1,0 +1,171 @@
+{
+  "name": "AI Lead Analysis",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "ai-analysis-trigger",
+        "responseMode": "onReceived",
+        "responseData": "",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract lead data from incoming payload or fetch from Supabase\nconst input = $input.first().json.body;\nlet lead;\n\nif (input.lead_id) {\n  // Lead ID provided - trigger expects fetch from DB\n  lead = { lead_id: input.lead_id };\n} else if (input.customer_name) {\n  // Full lead data provided - use directly\n  lead = input;\n} else {\n  throw new Error('No lead_id or customer_name provided in payload');\n}\n\nreturn lead;"
+      },
+      "id": "parse-input",
+      "name": "Parse Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "table": "hvac_leads",
+        "returnFields": {
+          "values": [
+            { "field": "id" },
+            { "field": "customer_name" },
+            { "field": "city" },
+            { "field": "service_type" },
+            { "field": "property_type" },
+            { "field": "issue_description" },
+            { "field": "created_at" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "supabase-fetch",
+      "name": "Fetch Lead from Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "credentials": {
+        "supabaseApi": "Supabase API"
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "You are an HVAC lead qualification AI. Analyze this HVAC service lead and provide:\n\n1. A brief one-sentence summary of the issue\n2. Recommended action\n3. Lead quality score (LOW, MEDIUM, HIGH)\n4. Urgency level (LOW, NORMAL, HIGH, EMERGENCY)\n5. Estimated job value (LOW, MEDIUM, HIGH)\n6. Customer intent (UNKNOWN, SHOPPING, READY_TO_BUY)\n7. Service category\n8. Recommended response time\n9. Lead score (0-100)\n10. Priority (LOW, MEDIUM, HIGH, CRITICAL)\n\nCustomer: {{ $json.customer_name }}\nCity: {{ $json.city }}\nService Type: {{ $json.service_type }}\nProperty Type: {{ $json.property_type }}\nIssue Description: {{ $json.issue_description }}\n\nRespond in JSON format only.",
+        "options": {
+          "temperature": 0.3,
+          "maxTokens": 500
+        }
+      },
+      "id": "openrouter-ai",
+      "name": "OpenRouter AI Analysis",
+      "type": "@felixscheinost/n8n-nodes-openrouter",
+      "typeVersion": 1,
+      "position": [850, 300],
+      "credentials": {
+        "openRouterApi": "OpenRouter API"
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse AI response and merge with lead data\nconst aiResponse = $input.first().json;\n\nlet analysis;\ntry {\n  // Try to parse JSON from AI response\n  const text = aiResponse.output || aiResponse.text || aiResponse.message || '{}';\n  analysis = typeof text === 'string' ? JSON.parse(text) : text;\n} catch (e) {\n  console.error('[AI ANALYSIS] Failed to parse AI response as JSON:', e.message);\n  // Fallback defaults\n  analysis = {\n    summary: $json.issue_description || 'No summary available',\n    recommended_action: 'Review lead manually',\n    lead_quality: 'MEDIUM',\n    urgency: 'NORMAL',\n    estimated_job_value: 'MEDIUM',\n    customer_intent: 'UNKNOWN',\n    service_category: 'General',\n    recommended_response_time: 'Within 24 Hours',\n    lead_score: 50,\n    priority: 'MEDIUM'\n  };\n}\n\nreturn {\n  lead_id: $json.id,\n  summary: analysis.summary || analysis.Summary,\n  recommended_action: analysis.recommended_action || analysis.RecommendedAction,\n  lead_quality: (analysis.lead_quality || analysis.Quality || 'MEDIUM').toUpperCase(),\n  urgency: (analysis.urgency || analysis.Urgency || 'NORMAL').toUpperCase(),\n  estimated_job_value: (analysis.estimated_job_value || analysis.EstimatedJobValue || 'MEDIUM').toUpperCase(),\n  customer_intent: (analysis.customer_intent || analysis.CustomerIntent || 'UNKNOWN').toUpperCase(),\n  service_category: analysis.service_category || analysis.ServiceCategory || 'General',\n  recommended_response_time: analysis.recommended_response_time || analysis.RecommendedResponseTime || 'Within 24 Hours',\n  lead_score: parseInt(analysis.lead_score || analysis.Score || 50, 10),\n  priority: (analysis.priority || analysis.Priority || 'MEDIUM').toUpperCase()\n};"
+      },
+      "id": "parse-analysis",
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "table": "hvac_leads",
+        "updateKey": "id",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {}
+        },
+        "dataMode": "postProcess",
+        "options": {}
+      },
+      "id": "supabase-update",
+      "name": "Update Lead in Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1250, 300],
+      "credentials": {
+        "supabaseApi": "Supabase API"
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "console.log('[AI ANALYSIS COMPLETE] Lead:', $json.lead_id, 'Score:', $json.lead_score, 'Priority:', $json.priority);\nreturn $input.first().json;"
+      },
+      "id": "log-complete",
+      "name": "Log Completion",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const error = $input.first().json.error || 'AI Analysis failed';\nconsole.error('[AI ANALYSIS ERROR]', error);\nreturn { success: false, error: error.message || error };"
+      },
+      "id": "error-handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 500],
+      "onError": "continueErrorOutput"
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [[{ "node": "Parse Input", "type": "main", "index": 0 }]]
+    },
+    "Parse Input": {
+      "main": [[{ "node": "Fetch Lead from Supabase", "type": "main", "index": 0 }]]
+    },
+    "Fetch Lead from Supabase": {
+      "main": [[{ "node": "OpenRouter AI Analysis", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "Error Handler", "type": "main", "index": 0 }]]
+    },
+    "OpenRouter AI Analysis": {
+      "main": [[{ "node": "Parse AI Response", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "Error Handler", "type": "main", "index": 0 }]]
+    },
+    "Parse AI Response": {
+      "main": [[{ "node": "Update Lead in Supabase", "type": "main", "index": 0 }]]
+    },
+    "Update Lead in Supabase": {
+      "main": [[{ "node": "Log Completion", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "Error Handler", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "UTC",
+    "retryOnFail": true,
+    "maxTries": 3,
+    "waitBetweenTries": 5000
+  },
+  "staticData": null,
+  "tags": [
+    { "name": "ai" },
+    { "name": "analysis" },
+    { "name": "production" }
+  ],
+  "versionId": "1.1.0",
+  "metadata": {
+    "version": "1.1.0",
+    "description": "Analyzes HVAC leads using OpenRouter AI, updates lead score, priority, and quality in Supabase",
+    "requiredEnv": ["SUPABASE_URL", "SUPABASE_SERVICE_KEY", "OPENROUTER_API_KEY"],
+    "triggerType": "webhook",
+    "lastUpdated": "2026-06-29"
+  }
+}

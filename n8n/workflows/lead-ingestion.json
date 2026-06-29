@@ -1,0 +1,118 @@
+{
+  "name": "Lead Ingestion",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "lead-ingestion",
+        "responseMode": "onReceived",
+        "responseData": "",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Receiver",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract and validate incoming lead payload\nconst lead = $input.first().json.body;\n\n// Required field validation\nconst requiredFields = ['customer_name', 'phone', 'city', 'service_type', 'property_type', 'issue_description'];\nconst missing = requiredFields.filter(f => !lead[f]);\n\nif (missing.length > 0) {\n  throw new Error(`Missing required fields: ${missing.join(', ')}`);\n}\n\n// Default values for optional fields\nlead.source = lead.source || 'Website';\nlead.status = 'NEW';\nlead.lead_score = lead.lead_score || 50;\nlead.priority = lead.priority || 'MEDIUM';\nlead.lead_quality = lead.lead_quality || 'MEDIUM';\nlead.urgency = lead.urgency || 'NORMAL';\nlead.estimated_job_value = lead.estimated_job_value || 'MEDIUM';\nlead.customer_intent = lead.customer_intent || 'UNKNOWN';\nlead.recommended_response_time = lead.recommended_response_time || 'Within 24 Hours';\nlead.service_category = lead.service_category || 'General';\nlead.summary = lead.summary || lead.issue_description.substring(0, 200);\nlead.recommended_action = lead.recommended_action || 'Review and contact customer.';\n\nreturn lead;"
+      },
+      "id": "validate-payload",
+      "name": "Validate & Sanitize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "hvac_leads",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {}
+        },
+        "dataMode": "postProcess",
+        "options": {}
+      },
+      "id": "supabase-insert",
+      "name": "Insert into Supabase",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "credentials": {
+        "supabaseApi": "Supabase API"
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log successful ingestion\nconst insertedLead = $input.first().json;\nconst log = {\n  workflow: 'Lead Ingestion',\n  action: 'lead_created',\n  lead_id: insertedLead.id,\n  customer: insertedLead.customer_name,\n  status: 'success',\n  timestamp: new Date().toISOString()\n};\nconsole.log('[LEAD INGESTION]', JSON.stringify(log));\nreturn { success: true, lead_id: insertedLead.id };"
+      },
+      "id": "log-success",
+      "name": "Log Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log failed ingestion\nconst error = $input.first().json.error || 'Unknown error';\nconst log = {\n  workflow: 'Lead Ingestion',\n  action: 'lead_creation_failed',\n  error: error.message || error,\n  status: 'failed',\n  timestamp: new Date().toISOString()\n};\nconsole.error('[LEAD INGESTION ERROR]', JSON.stringify(log));\nreturn { success: false, error: error.message || error };"
+      },
+      "id": "error-handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 500],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Trigger AI analysis after successful ingestion\n// This node signals the ai-lead-analysis workflow\nconst leadId = $input.first().json.lead_id;\nconsole.log('[LEAD INGESTION] Triggering AI analysis for lead:', leadId);\nreturn { trigger_ai_analysis: true, lead_id: leadId };"
+      },
+      "id": "trigger-ai",
+      "name": "Trigger AI Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Receiver": {
+      "main": [[{ "node": "Validate & Sanitize", "type": "main", "index": 0 }]]
+    },
+    "Validate & Sanitize": {
+      "main": [[{ "node": "Insert into Supabase", "type": "main", "index": 0 }]]
+    },
+    "Insert into Supabase": {
+      "main": [[{ "node": "Log Success", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "Error Handler", "type": "main", "index": 0 }]]
+    },
+    "Log Success": {
+      "main": [[{ "node": "Trigger AI Analysis", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "UTC",
+    "retryOnFail": true,
+    "maxTries": 3,
+    "waitBetweenTries": 5000
+  },
+  "staticData": null,
+  "tags": [
+    { "name": "ingestion" },
+    { "name": "core" },
+    { "name": "production" }
+  ],
+  "versionId": "1.1.0",
+  "metadata": {
+    "version": "1.1.0",
+    "description": "Receives HVAC leads via webhook, validates payload, inserts into Supabase, triggers AI analysis",
+    "requiredEnv": ["SUPABASE_URL", "SUPABASE_SERVICE_KEY"],
+    "triggerType": "webhook",
+    "lastUpdated": "2026-06-29"
+  }
+}

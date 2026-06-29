@@ -2,11 +2,11 @@
 'use client'
 
 import React, { useState, useEffect, useMemo } from 'react'
-import { 
-  MapPin, Phone, Globe, Calendar, Sparkles, MoreHorizontal, Eye, UserCheck, 
-  CalendarCheck, CheckCircle2, AlertCircle, X, Clock3, ArrowRight, 
-  Loader2, FileText, Search, SlidersHorizontal, ArrowUpDown, Trash2, CheckSquare, 
-  Square, ShieldAlert, FolderOpen, PlusCircle, Activity
+import {
+  MapPin, Phone, Globe, Calendar, Sparkles, MoreHorizontal, Eye, UserCheck,
+  CalendarCheck, CheckCircle2, AlertCircle,
+  Loader2, Search, SlidersHorizontal, ArrowUpDown, Trash2, CheckSquare,
+  Square, ShieldAlert, FolderOpen
 } from 'lucide-react'
 import { createClient } from '../../../lib/supabase/client'
 import { updateLeadStatusDirectly, triggerLeadAction, bulkUpdateLeadStatus, bulkDeleteLeads } from '../dashboard/actions'
@@ -86,7 +86,7 @@ export default function CRMClient({ initialLeads }: CRMClientProps) {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [])
+  }, [supabase])
 
   // ড্রপডাউন ইউনিক ফিল্টার লিস্ট জেনারেটর
   const uniqueCities = useMemo(() => Array.from(new Set(leadsList.map(l => l.city))), [leadsList])

@@ -28,18 +28,6 @@ const isServer = typeof window === 'undefined'
 
 // ৪. সার্ভার সাইডে থাকলে সিক্রেট কি-সমূহ ভ্যালিডেট করা (কোনো type-reassignment বা any ছাড়া)
 if (isServer) {
-  const serverData = {
-    lead_id: 'dummy', // Validation placeholder
-    n8nWebhookUrl: process.env.N8N_WEBHOOK_URL,
-    reminder_date: '',
-    reminder_time: '',
-    priority: '',
-    message: '',
-    status: '',
-    created_at: '',
-    updated_at: ''
-  }
-
   const serverParsed = serverEnvSchema.safeParse({
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
     N8N_WEBHOOK_URL: process.env.N8N_WEBHOOK_URL,

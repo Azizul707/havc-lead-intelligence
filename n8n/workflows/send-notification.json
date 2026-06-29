@@ -1,0 +1,101 @@
+{
+  "name": "Send Notification",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "send-notification",
+        "responseMode": "onReceived",
+        "responseData": "",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate incoming notification payload\nconst payload = $input.first().json.body;\n\nif (!payload.to || !payload.subject || !payload.message) {\n  throw new Error('Missing required fields: to, subject, message');\n}\n\nreturn {\n  to: payload.to,\n  subject: payload.subject,\n  message: payload.message,\n  type: payload.type || 'email',\n  lead_id: payload.lead_id || null,\n  customer_name: payload.customer_name || null\n};"
+      },
+      "id": "validate-payload",
+      "name": "Validate Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "{{$env.SMTP_FROM_EMAIL}}",
+        "toEmail": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "text": "={{ $json.message }}",
+        "options": {}
+      },
+      "id": "send-email",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "credentials": {
+        "smtp": "SMTP Provider"
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log notification result\nconst result = $input.first().json;\nconst log = {\n  workflow: 'Send Notification',\n  action: 'notification_sent',\n  to: $json.to,\n  type: $json.type,\n  status: result.accepted ? 'sent' : 'failed',\n  timestamp: new Date().toISOString()\n};\nconsole.log('[NOTIFICATION]', JSON.stringify(log));\n\n// Return success response\nreturn {\n  success: true,\n  message_id: result.messageId || null,\n  to: $json.to,\n  subject: $json.subject\n};"
+      },
+      "id": "log-success",
+      "name": "Log Success",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const error = $input.first().json.error || 'Notification failed';\nconsole.error('[NOTIFICATION ERROR]', error.message || error);\n\n// Fallback: log to console for monitoring\nreturn {\n  success: false,\n  error: error.message || error,\n  to: $json.to\n};"
+      },
+      "id": "error-handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 500],
+      "onError": "continueErrorOutput"
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [[{ "node": "Validate Payload", "type": "main", "index": 0 }]]
+    },
+    "Validate Payload": {
+      "main": [[{ "node": "Send Email", "type": "main", "index": 0 }]]
+    },
+    "Send Email": {
+      "main": [[{ "node": "Log Success", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "Error Handler", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "UTC",
+    "retryOnFail": true,
+    "maxTries": 3,
+    "waitBetweenTries": 10000
+  },
+  "staticData": null,
+  "tags": [
+    { "name": "notification" },
+    { "name": "production" }
+  ],
+  "versionId": "1.1.0",
+  "metadata": {
+    "version": "1.1.0",
+    "description": "Sends email notifications via SMTP for lead events, status changes, and alerts",
+    "requiredEnv": ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS", "SMTP_FROM_EMAIL"],
+    "triggerType": "webhook",
+    "lastUpdated": "2026-06-29"
+  }
+}

@@ -1,0 +1,167 @@
+{
+  "name": "Schedule Appointment",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "schedule-appointment",
+        "responseMode": "onReceived",
+        "responseData": "",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract and validate appointment payload\nconst payload = $input.first().json.body;\n\nconst required = ['lead_id', 'appointment_date', 'appointment_time', 'appointment_type'];\nconst missing = required.filter(f => !payload[f]);\n\nif (missing.length > 0) {\n  throw new Error(`Missing required fields: ${missing.join(', ')}`);\n}\n\nreturn {\n  lead_id: payload.lead_id,\n  appointment_date: payload.appointment_date,\n  appointment_time: payload.appointment_time,\n  appointment_type: payload.appointment_type,\n  notes: payload.notes || '',\n  status: 'Scheduled'\n};"
+      },
+      "id": "validate-payload",
+      "name": "Validate Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "appointments",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {}
+        },
+        "dataMode": "postProcess",
+        "options": {}
+      },
+      "id": "supabase-insert",
+      "name": "Insert Appointment",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "credentials": {
+        "supabaseApi": "Supabase API"
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// After inserting appointment, update lead status to SCHEDULED\nconst appointment = $input.first().json;\nreturn {\n  lead_id: $json.lead_id,\n  appointment_id: appointment.id,\n  appointment_date: $json.appointment_date,\n  appointment_time: $json.appointment_time,\n  status: 'SCHEDULED'\n};"
+      },
+      "id": "prepare-lead-update",
+      "name": "Prepare Lead Update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "table": "hvac_leads",
+        "updateKey": "id",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {}
+        },
+        "dataMode": "postProcess",
+        "options": {}
+      },
+      "id": "supabase-update-lead",
+      "name": "Update Lead Status",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1050, 300],
+      "credentials": {
+        "supabaseApi": "Supabase API"
+      }
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "lead_events",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {}
+        },
+        "dataMode": "postProcess",
+        "options": {}
+      },
+      "id": "log-event",
+      "name": "Log Appointment Event",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [1250, 300],
+      "credentials": {
+        "supabaseApi": "Supabase API"
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const log = {\n  workflow: 'Schedule Appointment',\n  action: 'appointment_created',\n  lead_id: $json.lead_id,\n  date: $json.appointment_date,\n  time: $json.appointment_time,\n  status: 'success',\n  timestamp: new Date().toISOString()\n};\nconsole.log('[APPOINTMENT]', JSON.stringify(log));\nreturn { success: true, appointment_id: $json.appointment_id };"
+      },
+      "id": "log-complete",
+      "name": "Log Completion",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const error = $input.first().json.error || 'Appointment scheduling failed';\nconsole.error('[APPOINTMENT ERROR]', error.message || error);\nreturn { success: false, error: error.message || error };"
+      },
+      "id": "error-handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [650, 500],
+      "onError": "continueErrorOutput"
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [[{ "node": "Validate Payload", "type": "main", "index": 0 }]]
+    },
+    "Validate Payload": {
+      "main": [[{ "node": "Insert Appointment", "type": "main", "index": 0 }]]
+    },
+    "Insert Appointment": {
+      "main": [[{ "node": "Prepare Lead Update", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "Error Handler", "type": "main", "index": 0 }]]
+    },
+    "Prepare Lead Update": {
+      "main": [[{ "node": "Update Lead Status", "type": "main", "index": 0 }]]
+    },
+    "Update Lead Status": {
+      "main": [[{ "node": "Log Appointment Event", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "Error Handler", "type": "main", "index": 0 }]]
+    },
+    "Log Appointment Event": {
+      "main": [[{ "node": "Log Completion", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "Error Handler", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "UTC",
+    "retryOnFail": true,
+    "maxTries": 3,
+    "waitBetweenTries": 5000
+  },
+  "staticData": null,
+  "tags": [
+    { "name": "scheduling" },
+    { "name": "appointment" },
+    { "name": "production" }
+  ],
+  "versionId": "1.1.0",
+  "metadata": {
+    "version": "1.1.0",
+    "description": "Creates appointments in Supabase, updates lead status to SCHEDULED, logs event timeline",
+    "requiredEnv": ["SUPABASE_URL", "SUPABASE_SERVICE_KEY"],
+    "triggerType": "webhook",
+    "lastUpdated": "2026-06-29"
+  }
+}

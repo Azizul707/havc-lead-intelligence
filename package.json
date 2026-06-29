@@ -6,7 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "setup": "node scripts/setup.mjs",
+    "validate": "node scripts/validate-env.mjs",
+    "branding": "node scripts/branding-setup.mjs",
+    "verify-build": "node scripts/verify-build.mjs",
+    "install-db": "node scripts/install-db.mjs"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",
