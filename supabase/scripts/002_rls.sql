@@ -36,8 +36,9 @@ do $$ begin
   if not exists (select 1 from pg_policies where policyname = 'Users can update own leads' and tablename = 'hvac_leads') then
     create policy "Users can update own leads" on public.hvac_leads for update using (auth.uid() = owner_id);
   end if;
-  if not exists (select 1 from pg_policies where policyname = 'Users can delete own leads' and tablename = 'hvac_leads') then
-    create policy "Users can delete own leads" on public.hvac_leads for delete using (auth.uid() = owner_id);
+  -- Drop and recreate to allow deleting shared (owner_id IS NULL) leads
+  drop policy if exists "Users can delete own leads" on public.hvac_leads;
+  create policy "Users can delete own leads" on public.hvac_leads for delete using (auth.uid() = owner_id OR owner_id IS NULL);
   end if;
 end $$;
 
