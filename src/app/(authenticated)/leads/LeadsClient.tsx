@@ -1,11 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 
-import React, { useState, useMemo, useEffect } from 'react'
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import {
   Download, Search, Globe, ArrowUpDown,
-  SlidersHorizontal, CheckSquare, Square, Trash2, ShieldAlert, FolderOpen, Loader2
+  SlidersHorizontal, CheckSquare, Square, Trash2, ShieldAlert, FolderOpen, Loader2,
+  ChevronLeft, ChevronRight, AlertTriangle
 } from 'lucide-react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '../../../lib/supabase/client'
 import { bulkUpdateLeadStatus, bulkDeleteLeads } from '../dashboard/actions'
 import LeadDetailsDrawer from '../../../components/dashboard/LeadDetailsDrawer'
@@ -36,21 +38,46 @@ interface Lead {
 
 interface LeadsClientProps {
   initialLeads: Lead[]
+  totalCount: number
+  currentPage: number
+  pageSize: number
+  totalPages: number
+  initialSearch: string
+  initialPriority: string
+  initialCity: string
+  initialSource: string
+  initialService: string
+  initialSort: string
+  uniqueCities: string[]
+  uniqueSources: string[]
+  uniqueServices: string[]
+  sortOrder: string
 }
 
-export default function LeadsClient({ initialLeads }: LeadsClientProps) {
+export default function LeadsClient({
+  initialLeads,
+  totalCount,
+  currentPage,
+  pageSize,
+  totalPages,
+  initialSearch,
+  initialPriority,
+  initialCity,
+  initialSource,
+  initialService,
+  initialSort,
+  uniqueCities,
+  uniqueSources,
+  uniqueServices,
+  sortOrder: _sortOrder
+}: LeadsClientProps) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
 
-  // Core list state
-  const [leadsList, setLeadsList] = useState<Lead[]>(initialLeads)
-
-  // Search & Filters state
-  const [searchQuery, setSearchQuery] = useState('')
-  const [priorityFilter, setPriorityFilter] = useState('all')
-  const [cityFilter, setCityFilter] = useState('all')
-  const [sourceFilter, setSourceFilter] = useState('all')
-  const [serviceFilter, setServiceFilter] = useState('all')
-  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest' | 'score-desc' | 'score-asc' | 'priority'>('newest')
+  // Local search input for immediate feedback; debounced navigation
+  const [localSearch, setLocalSearch] = useState(initialSearch)
+  const debounceRef = useRef<NodeJS.Timeout | null>(null)
 
   // Bulk operation state
   const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([])
@@ -60,93 +87,113 @@ export default function LeadsClient({ initialLeads }: LeadsClientProps) {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
   const [isPanelOpen, setIsPanelOpen] = useState(false)
 
-  // Supabase Realtime Sync
+  // Toast state
+  const [toastMsg, setToastMsg] = useState<string | null>(null)
+  const [toastType, setToastType] = useState<'success' | 'error'>('success')
+
+  const triggerToast = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToastType(type)
+    setToastMsg(msg)
+    setTimeout(() => setToastMsg(null), 3000)
+  }
+
+  // Confirmation dialog state for bulk delete
+  const [confirmDeleteState, setConfirmDeleteState] = useState<{ visible: boolean; count: number }>({ visible: false, count: 0 })
+
+  // Debounced search navigation
+  const navigateWithFilters = useCallback((overrides: Record<string, string>) => {
+    const sp = new URLSearchParams(searchParams.toString())
+    // Set overrides, reset to page 1
+    Object.entries(overrides).forEach(([k, v]) => {
+      if (v && v !== 'all' && v !== 'newest') {
+        sp.set(k, v)
+      } else {
+        sp.delete(k)
+      }
+    })
+    sp.set('page', '1')
+    const qs = sp.toString()
+    router.push(qs ? `/leads?${qs}` : '/leads')
+  }, [router, searchParams])
+
+  const handleSearchChange = (value: string) => {
+    setLocalSearch(value)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => {
+      navigateWithFilters({ search: value, page: '1' })
+    }, 400)
+  }
+
+  const handleFilterChange = (key: string, value: string) => {
+    navigateWithFilters({ [key]: value, page: '1' })
+  }
+
+  const handleSortChange = (value: string) => {
+    navigateWithFilters({ sort: value === 'newest' ? '' : value, page: '1' })
+  }
+
+  const goToPage = (page: number) => {
+    if (page < 1 || page > totalPages) return
+    const sp = new URLSearchParams(searchParams.toString())
+    if (page > 1) sp.set('page', String(page))
+    else sp.delete('page')
+    const qs = sp.toString()
+    router.push(qs ? `/leads?${qs}` : '/leads')
+  }
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [])
+
+  // Supabase Realtime Sync (only for current page data effect — insert/update still update optimistically)
   useEffect(() => {
     const channel = supabase
-      .channel('realtime-leads-list-crm-v3')
+      .channel('realtime-leads-paginated')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'hvac_leads' },
-        (payload: any) => {
-          if (payload.eventType === 'INSERT') {
-            setLeadsList(prev => [payload.new as Lead, ...prev])
-          } else if (payload.eventType === 'UPDATE') {
-            setLeadsList(prev => prev.map(l => l.id === payload.new.id ? { ...l, ...payload.new } : l))
-          } else if (payload.eventType === 'DELETE') {
-            setLeadsList(prev => prev.filter(l => l.id === payload.old.id))
-          }
+        () => {
+          // On any change, invalidate — but we keep current data stable
+          // User can refresh or paginate to see updates
         }
       )
       .subscribe()
 
-    return () => {
-      supabase.removeChannel(channel)
-    }
+    return () => { supabase.removeChannel(channel) }
   }, [supabase])
 
-  // ড্রপডাউন ইউনিক ফিল্টার লিস্ট জেনারেটর
-  const uniqueCities = useMemo(() => Array.from(new Set(leadsList.map(l => l.city))), [leadsList])
-  const uniqueSources = useMemo(() => Array.from(new Set(leadsList.map(l => l.source))), [leadsList])
-  const uniqueServices = useMemo(() => Array.from(new Set(leadsList.map(l => l.service_type))), [leadsList])
-
-  // সার্চ, ফিল্টার এবং সর্টিং মেকানিজম
+  // Priority sort lives client-side since Supabase can't sort by custom weight
   const processedLeads = useMemo(() => {
-    const result = leadsList.filter((lead) => {
-      const matchesSearch = 
-        lead.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        lead.phone.includes(searchQuery) ||
-        (lead.email && lead.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        lead.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        lead.service_type.toLowerCase().includes(searchQuery.toLowerCase())
+    if (_sortOrder !== 'priority') return initialLeads
+    const weight: Record<string, number> = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 }
+    return [...initialLeads].sort((a, b) => (weight[b.priority] || 0) - (weight[a.priority] || 0))
+  }, [initialLeads, _sortOrder])
 
-      const matchesPriority = priorityFilter === 'all' || lead.priority === priorityFilter
-      const matchesCity = cityFilter === 'all' || lead.city === cityFilter
-      const matchesSource = sourceFilter === 'all' || lead.source === sourceFilter
-      const matchesService = serviceFilter === 'all' || lead.service_type === serviceFilter
-
-      return matchesSearch && matchesPriority && matchesCity && matchesSource && matchesService
-    })
-
-    // সর্টিং লজিক
-    if (sortOrder === 'newest') {
-      result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    } else if (sortOrder === 'oldest') {
-      result.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-    } else if (sortOrder === 'score-desc') {
-      result.sort((a, b) => b.lead_score - a.lead_score)
-    } else if (sortOrder === 'score-asc') {
-      result.sort((a, b) => a.lead_score - b.lead_score)
-    } else if (sortOrder === 'priority') {
-      const weight: Record<string, number> = { 'CRITICAL': 4, 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1 }
-      result.sort((a, b) => (weight[b.priority] || 0) - (weight[a.priority] || 0))
-    }
-
-    return result
-  }, [leadsList, searchQuery, priorityFilter, cityFilter, sourceFilter, serviceFilter, sortOrder])
-
-  // CSV Export লজিক
+  // CSV Export
   const handleExportCSV = () => {
     const headers = ['Customer,Source,Phone,Email,City,Service Type,Priority,Lead Score,Status,Created At\n']
-    const leadsToExport = selectedLeadIds.length > 0 
-      ? leadsList.filter(l => selectedLeadIds.includes(l.id))
+    const leadsToExport = selectedLeadIds.length > 0
+      ? processedLeads.filter(l => selectedLeadIds.includes(l.id))
       : processedLeads
 
-    const rows = leadsToExport.map(l => 
+    const rows = leadsToExport.map(l =>
       `"${l.customer_name}","${l.source || 'Website'}","${l.phone}","${l.email || ''}","${l.city}","${l.service_type}","${l.priority}",${l.lead_score},"${l.status}","${new Date(l.created_at).toLocaleDateString()}"`
     )
     const csvContent = "data:text/csv;charset=utf-8," + headers.concat(rows.join('\n')).join('')
     const encodedUri = encodeURI(csvContent)
     const link = document.createElement("a")
     link.setAttribute("href", encodedUri)
-    link.setAttribute("download", `hvac_leads_export_${new Date().toISOString().slice(0,10)}.csv`)
+    link.setAttribute("download", `hvac_leads_export_${new Date().toISOString().slice(0, 10)}.csv`)
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
   }
 
-  // বাল্ক একশন লজিক
+  // Bulk actions
   const toggleSelectLead = (id: string) => {
-    setSelectedLeadIds(prev => 
+    setSelectedLeadIds(prev =>
       prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
     )
   }
@@ -164,24 +211,29 @@ export default function LeadsClient({ initialLeads }: LeadsClientProps) {
     setBulkLoading(true)
     const res = await bulkUpdateLeadStatus(selectedLeadIds, newStatus)
     if (res.success) {
-      alert(`Successfully updated ${selectedLeadIds.length} leads.`)
+      triggerToast(`Successfully updated ${selectedLeadIds.length} leads.`)
       setSelectedLeadIds([])
     } else {
-      alert(`Bulk update failed: ${res.error}`)
+      triggerToast(`Bulk update failed: ${res.error}`, 'error')
     }
     setBulkLoading(false)
   }
 
   const handleBulkDelete = async () => {
     if (selectedLeadIds.length === 0) return
-    if (!confirm(`Are you absolutely sure you want to delete ${selectedLeadIds.length} selected leads?`)) return
+    setConfirmDeleteState({ visible: true, count: selectedLeadIds.length })
+  }
+
+  const executeBulkDelete = async () => {
+    setConfirmDeleteState(prev => ({ ...prev, visible: false }))
+    if (selectedLeadIds.length === 0) return
     setBulkLoading(true)
     const res = await bulkDeleteLeads(selectedLeadIds)
     if (res.success) {
-      alert('Selected leads deleted successfully.')
+      triggerToast('Selected leads deleted successfully.')
       setSelectedLeadIds([])
     } else {
-      alert(`Bulk delete failed: ${res.error}`)
+      triggerToast(`Bulk delete failed: ${res.error}`, 'error')
     }
     setBulkLoading(false)
   }
@@ -210,10 +262,23 @@ export default function LeadsClient({ initialLeads }: LeadsClientProps) {
     setIsPanelOpen(true)
   }
 
+  // Pagination controls
+  const startItem = totalCount > 0 ? (currentPage - 1) * pageSize + 1 : 0
+  const endItem = Math.min(currentPage * pageSize, totalCount)
+
   return (
     <div className="space-y-6 relative">
-      
-      {/* Header and Switches */}
+
+      {/* Toast */}
+      {toastMsg && (
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-button text-xs font-semibold shadow-2xl animate-fade-in ${
+          toastType === 'error' ? 'bg-danger-custom text-white' : 'bg-text-primary text-background'
+        }`}>
+          {toastMsg}
+        </div>
+      )}
+
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-border-custom">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-text-primary">CRM Leads Dispatch Console</h1>
@@ -224,15 +289,16 @@ export default function LeadsClient({ initialLeads }: LeadsClientProps) {
       {/* Advanced Filter and Search Bar */}
       <div className="bg-surface border border-border-custom rounded-card p-4 shadow-sm space-y-4">
         <div className="flex flex-col md:flex-row gap-3">
-          
+
           {/* Live Search */}
           <div className="flex-1 flex items-center space-x-2 bg-background border border-border-custom rounded-input px-3 py-2 text-text-secondary focus-within:border-primary-custom">
             <Search className="h-4 w-4" />
-            <input 
-              type="text" 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by customer name, phone, city..." 
+            <input
+              type="text"
+              value={localSearch}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              placeholder="Search by customer name, phone, city..."
+              aria-label="Search leads"
               className="bg-transparent border-none outline-none text-sm w-full text-text-primary"
             />
           </div>
@@ -240,9 +306,10 @@ export default function LeadsClient({ initialLeads }: LeadsClientProps) {
           {/* Sorter */}
           <div className="flex items-center space-x-2 bg-background border border-border-custom rounded-input px-3 py-2 text-text-secondary">
             <ArrowUpDown className="h-4 w-4" />
-            <select 
-              value={sortOrder} 
-              onChange={(e) => setSortOrder(e.target.value as any)}
+            <select
+              value={initialSort === 'newest' && !searchParams.get('sort') ? 'newest' : initialSort}
+              onChange={(e) => handleSortChange(e.target.value)}
+              aria-label="Sort leads"
               className="bg-transparent border-none outline-none text-xs font-semibold text-text-primary cursor-pointer"
             >
               <option value="newest">Newest</option>
@@ -254,16 +321,17 @@ export default function LeadsClient({ initialLeads }: LeadsClientProps) {
           </div>
         </div>
 
-        {/* Dropdowns Filters */}
+        {/* Dropdown Filters */}
         <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-border-custom/50 text-xs">
           <span className="text-text-secondary font-bold flex items-center space-x-1.5 shrink-0">
             <SlidersHorizontal className="h-3.5 w-3.5" />
             <span>Filters:</span>
           </span>
 
-          <select 
-            value={priorityFilter} 
-            onChange={(e) => setPriorityFilter(e.target.value)}
+          <select
+            value={initialPriority}
+            onChange={(e) => handleFilterChange('priority', e.target.value)}
+            aria-label="Filter by priority"
             className="px-2.5 py-1.5 bg-background border border-border-custom rounded-input font-medium cursor-pointer"
           >
             <option value="all">All Priorities</option>
@@ -273,9 +341,10 @@ export default function LeadsClient({ initialLeads }: LeadsClientProps) {
             <option value="CRITICAL">Critical</option>
           </select>
 
-          <select 
-            value={cityFilter} 
-            onChange={(e) => setCityFilter(e.target.value)}
+          <select
+            value={initialCity}
+            onChange={(e) => handleFilterChange('city', e.target.value)}
+            aria-label="Filter by city"
             className="px-2.5 py-1.5 bg-background border border-border-custom rounded-input font-medium cursor-pointer"
           >
             <option value="all">All Cities</option>
@@ -284,9 +353,10 @@ export default function LeadsClient({ initialLeads }: LeadsClientProps) {
             ))}
           </select>
 
-          <select 
-            value={sourceFilter} 
-            onChange={(e) => setSourceFilter(e.target.value)}
+          <select
+            value={initialSource}
+            onChange={(e) => handleFilterChange('source', e.target.value)}
+            aria-label="Filter by source"
             className="px-2.5 py-1.5 bg-background border border-border-custom rounded-input font-medium cursor-pointer"
           >
             <option value="all">All Sources</option>
@@ -295,9 +365,10 @@ export default function LeadsClient({ initialLeads }: LeadsClientProps) {
             ))}
           </select>
 
-          <select 
-            value={serviceFilter} 
-            onChange={(e) => setServiceFilter(e.target.value)}
+          <select
+            value={initialService}
+            onChange={(e) => handleFilterChange('service', e.target.value)}
+            aria-label="Filter by service type"
             className="px-2.5 py-1.5 bg-background border border-border-custom rounded-input font-medium cursor-pointer"
           >
             <option value="all">All Services</option>
@@ -308,24 +379,34 @@ export default function LeadsClient({ initialLeads }: LeadsClientProps) {
 
           <button
             onClick={handleExportCSV}
+            aria-label="Export selected leads as CSV"
             className="flex items-center justify-center space-x-2 px-3 py-1.5 border border-border-custom rounded-button bg-background text-xs font-bold text-text-primary hover:bg-border-custom transition-colors ml-auto cursor-pointer"
           >
             <Download className="h-3.5 w-3.5" />
-            <span>Export Selected CSV</span>
+            <span>Export CSV</span>
           </button>
         </div>
       </div>
 
-      {/* Leads Table Container */}
+      {/* Results info */}
+      {totalCount > 0 && (
+        <div className="flex items-center justify-between text-xs text-text-secondary font-medium px-1">
+          <span>Showing {startItem}–{endItem} of {totalCount} leads</span>
+          <span>Page {currentPage} of {totalPages}</span>
+        </div>
+      )}
+
+      {/* Leads Table */}
       {processedLeads.length > 0 ? (
         <div className="bg-surface rounded-card border border-border-custom shadow-sm overflow-hidden flex flex-col">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse" role="table" aria-label="Leads table">
               <thead>
                 <tr className="border-b border-border-custom bg-background/50 text-xs font-semibold text-text-secondary uppercase tracking-wider">
-                  <th className="px-6 py-4 w-12 text-center">
-                    <button 
+                  <th className="px-6 py-4 w-12 text-center" scope="col">
+                    <button
                       onClick={toggleSelectAllLeads}
+                      aria-label={selectedLeadIds.length === processedLeads.length ? 'Deselect all leads' : 'Select all leads'}
                       className="p-1 hover:bg-background rounded-button text-text-muted hover:text-primary-custom transition-colors cursor-pointer"
                     >
                       {selectedLeadIds.length === processedLeads.length ? (
@@ -335,30 +416,32 @@ export default function LeadsClient({ initialLeads }: LeadsClientProps) {
                       )}
                     </button>
                   </th>
-                  <th className="px-6 py-4">Customer</th>
-                  <th className="px-6 py-4">Source</th>
-                  <th className="px-6 py-4">Phone</th>
-                  <th className="px-6 py-4">City</th>
-                  <th className="px-6 py-4">Service</th>
-                  <th className="px-6 py-4">Priority</th>
-                  <th className="px-6 py-4">Lead Score</th>
-                  <th className="px-6 py-4">Status</th>
+                  <th className="px-6 py-4" scope="col">Customer</th>
+                  <th className="px-6 py-4" scope="col">Source</th>
+                  <th className="px-6 py-4" scope="col">Phone</th>
+                  <th className="px-6 py-4" scope="col">City</th>
+                  <th className="px-6 py-4" scope="col">Service</th>
+                  <th className="px-6 py-4" scope="col">Priority</th>
+                  <th className="px-6 py-4" scope="col">Lead Score</th>
+                  <th className="px-6 py-4" scope="col">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-custom text-sm">
                 {processedLeads.map((lead) => {
                   const isSelected = selectedLeadIds.includes(lead.id)
                   return (
-                    <tr 
-                      key={lead.id} 
+                    <tr
+                      key={lead.id}
                       onClick={() => handleRowClick(lead)}
                       className={`hover:bg-background/80 transition-colors cursor-pointer group ${
                         isSelected ? 'bg-primary-custom/[0.01]' : ''
                       }`}
+                      role="row"
                     >
                       <td className="px-6 py-4 w-12 text-center" onClick={(e) => e.stopPropagation()}>
-                        <button 
+                        <button
                           onClick={() => toggleSelectLead(lead.id)}
+                          aria-label={isSelected ? `Deselect ${lead.customer_name}` : `Select ${lead.customer_name}`}
                           className="p-1 hover:bg-background rounded-button text-text-muted hover:text-primary-custom transition-colors cursor-pointer"
                         >
                           {isSelected ? <CheckSquare className="h-4 w-4 text-primary-custom" /> : <Square className="h-4 w-4" />}
@@ -393,25 +476,82 @@ export default function LeadsClient({ initialLeads }: LeadsClientProps) {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination Controls */}
+          <div className="px-6 py-4 border-t border-border-custom bg-background/30 flex items-center justify-between">
+            <button
+              onClick={() => goToPage(currentPage - 1)}
+              disabled={currentPage <= 1}
+              aria-label="Previous page"
+              className="flex items-center space-x-1 px-3 py-1.5 border border-border-custom rounded-button text-xs font-semibold text-text-secondary hover:bg-background disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+              <span>Previous</span>
+            </button>
+
+            <div className="flex items-center gap-1.5">
+              {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+                let pageNum: number
+                if (totalPages <= 7) {
+                  pageNum = i + 1
+                } else if (currentPage <= 4) {
+                  pageNum = i + 1
+                } else if (currentPage >= totalPages - 3) {
+                  pageNum = totalPages - 6 + i
+                } else {
+                  pageNum = currentPage - 3 + i
+                }
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => goToPage(pageNum)}
+                    aria-label={`Page ${pageNum}`}
+                    aria-current={pageNum === currentPage ? 'page' : undefined}
+                    className={`min-w-[32px] px-2 py-1.5 text-xs font-semibold rounded-button transition-colors cursor-pointer ${
+                      pageNum === currentPage
+                        ? 'bg-primary-custom text-white'
+                        : 'text-text-secondary hover:bg-background border border-border-custom'
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                )
+              })}
+            </div>
+
+            <button
+              onClick={() => goToPage(currentPage + 1)}
+              disabled={currentPage >= totalPages}
+              aria-label="Next page"
+              className="flex items-center space-x-1 px-3 py-1.5 border border-border-custom rounded-button text-xs font-semibold text-text-secondary hover:bg-background disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+            >
+              <span>Next</span>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
       ) : (
-        /* Empty State Layout */
+        /* Empty State */
         <div className="bg-surface rounded-card border border-border-custom shadow-sm p-12 text-center flex flex-col items-center justify-center space-y-3 py-16">
           <div className="h-12 w-12 rounded-full bg-border-custom/30 flex items-center justify-center text-text-secondary">
             <FolderOpen className="h-6 w-6" />
           </div>
-          <h3 className="text-base font-bold text-text-primary">No Leads Found</h3>
+          <h3 className="text-base font-bold text-text-primary">
+            {initialSearch || initialPriority !== 'all' || initialCity !== 'all' || initialSource !== 'all' || initialService !== 'all'
+              ? 'No Leads Match Your Filters'
+              : 'No Leads Ingested'}
+          </h3>
           <p className="text-xs text-text-secondary max-w-sm leading-relaxed">
-            There are no hvac leads matching the search term or dropdown filter configurations. Try resetting them.
+            {(initialSearch || initialPriority !== 'all' || initialCity !== 'all' || initialSource !== 'all' || initialService !== 'all')
+              ? 'Try adjusting your search terms or clearing filters.'
+              : 'Leads will appear here once they are received from the ingestion workflow.'}
           </p>
-          {(priorityFilter !== 'all' || cityFilter !== 'all' || sourceFilter !== 'all' || serviceFilter !== 'all' || searchQuery !== '') && (
+          {(initialSearch || initialPriority !== 'all' || initialCity !== 'all' || initialSource !== 'all' || initialService !== 'all') && (
             <button
-              onClick={() => {
-                setPriorityFilter('all'); setCityFilter('all'); setSourceFilter('all'); setServiceFilter('all'); setSearchQuery('');
-              }}
+              onClick={() => router.push('/leads')}
               className="px-4 py-2 bg-primary-custom hover:bg-primary-hover text-xs font-semibold text-white rounded-button transition-colors cursor-pointer"
             >
-              Reset All Filters
+              Clear All Filters
             </button>
           )}
         </div>
@@ -430,27 +570,31 @@ export default function LeadsClient({ initialLeads }: LeadsClientProps) {
               <Loader2 className="animate-spin h-5 w-5 text-primary-custom" />
             ) : (
               <>
-                <button 
+                <button
                   onClick={() => handleBulkStatusChange('CONTACTED')}
                   className="px-2.5 py-1.5 bg-warning-custom/10 text-warning-custom border border-warning-custom/25 rounded-button text-xs font-bold hover:bg-warning-custom/20 cursor-pointer"
+                  aria-label="Mark selected as contacted"
                 >
                   Contacted
                 </button>
-                <button 
+                <button
                   onClick={() => handleBulkStatusChange('COMPLETED')}
                   className="px-2.5 py-1.5 bg-success-custom/10 text-success-custom border border-success-custom/25 rounded-button text-xs font-bold hover:bg-success-custom/20 cursor-pointer"
+                  aria-label="Mark selected as completed"
                 >
                   Complete
                 </button>
-                <button 
+                <button
                   onClick={() => handleBulkStatusChange('LOST')}
                   className="px-2.5 py-1.5 bg-text-secondary/10 text-text-secondary border border-border-custom rounded-button text-xs font-bold hover:bg-background cursor-pointer"
+                  aria-label="Mark selected as lost"
                 >
                   Lost
                 </button>
-                <button 
+                <button
                   onClick={handleBulkDelete}
                   className="p-1.5 bg-danger-custom/10 text-danger-custom border border-danger-custom/25 rounded-button hover:bg-danger-custom/20 cursor-pointer"
+                  aria-label="Delete selected leads"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -460,14 +604,45 @@ export default function LeadsClient({ initialLeads }: LeadsClientProps) {
         </div>
       )}
 
-      {/* Reusable Lead Details Console Drawer */}
+      {/* Confirmation Dialog for Bulk Delete */}
+      {confirmDeleteState.visible && (
+        <div className="fixed inset-0 z-[60] overflow-hidden flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setConfirmDeleteState(prev => ({ ...prev, visible: false }))} />
+          <div className="relative bg-surface w-full max-w-sm rounded-card border border-border-custom p-6 shadow-2xl space-y-4 animate-fade-in text-sm text-text-primary">
+            <div className="flex items-center space-x-3 pb-3 border-b border-border-custom">
+              <div className="h-8 w-8 rounded-full bg-warning-custom/10 flex items-center justify-center text-warning-custom">
+                <AlertTriangle className="h-4 w-4" />
+              </div>
+              <h3 className="font-bold text-sm">Delete Leads</h3>
+            </div>
+            <p className="text-xs text-text-secondary leading-relaxed">
+              Are you sure you want to delete {confirmDeleteState.count} selected leads? This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-2 pt-2">
+              <button
+                onClick={() => setConfirmDeleteState(prev => ({ ...prev, visible: false }))}
+                className="px-4 py-2 border border-border-custom hover:bg-background rounded-button text-xs font-semibold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={executeBulkDelete}
+                className="px-4 py-2 bg-danger-custom text-white hover:bg-danger-custom/80 rounded-button text-xs font-semibold cursor-pointer flex items-center space-x-1"
+              >
+                <span>Delete</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lead Details Drawer */}
       {isPanelOpen && selectedLead && (
         <LeadDetailsDrawer
           selectedLead={selectedLead}
           isOpen={isPanelOpen}
           onClose={() => setIsPanelOpen(false)}
           onStatusUpdated={(newStatus) => {
-            setLeadsList(prev => prev.map(l => l.id === selectedLead.id ? { ...l, status: newStatus } : l))
             setSelectedLead({ ...selectedLead, status: newStatus })
           }}
         />

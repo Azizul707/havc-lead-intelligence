@@ -5,7 +5,39 @@ import { createClient } from '../../../lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { logger } from '../../../lib/logger'
 import { handleServerError, AppError, ServerResponse } from '../../../lib/errors'
-import { appointmentSchema, noteSchema, reminderSchema } from '../../../lib/schemas'
+import { appointmentSchema, noteSchema, reminderSchema, appointmentUpdateSchema, noteUpdateSchema } from '../../../lib/schemas'
+
+/**
+ * Non-blocking helper to insert a lead event. Logs and returns errors instead of throwing.
+ */
+async function insertLeadEvent({
+  supabase,
+  leadId,
+  eventType,
+  description,
+  metadata = {},
+  createdBy
+}: {
+  supabase: any
+  leadId: string
+  eventType: string
+  description: string
+  metadata?: Record<string, unknown>
+  createdBy: string | null
+}): Promise<Error | null> {
+  try {
+    const { error } = await (supabase.from('lead_events') as any).insert({
+      lead_id: leadId,
+      event_type: eventType,
+      description,
+      metadata,
+      created_by: createdBy
+    })
+    return error || null
+  } catch (err) {
+    return err as Error
+  }
+}
 
 /**
  * FEATURE V2: Quick Actions Trigger & Webhook Proxy Handler.
@@ -36,31 +68,41 @@ export async function triggerLeadAction(
 
     // 3. Map CRM action to status and activity event logging
     let newStatus: string = lead.status
-    let eventType = 'CUSTOMER_CONTACTED'
+    let eventType = 'STATUS_CHANGED'
     let description = ''
+    let isFirstResponse = false
 
     switch (actionType) {
       case 'call':
-        eventType = 'CUSTOMER_CONTACTED'
-        description = `Called customer ${lead.customer_name} via dispatcher console.`
+        isFirstResponse = lead.status === 'NEW'
+        eventType = isFirstResponse ? 'FIRST_RESPONSE' : 'STATUS_CHANGED'
+        description = isFirstResponse
+          ? `First response — called customer ${lead.customer_name}.`
+          : `Called customer ${lead.customer_name} via dispatcher console.`
         break
       case 'email':
-        eventType = 'EMAIL_SENT'
-        description = `Emailed lead details to ${lead.customer_name}.`
+        isFirstResponse = lead.status === 'NEW'
+        eventType = isFirstResponse ? 'FIRST_RESPONSE' : 'STATUS_CHANGED'
+        description = isFirstResponse
+          ? `First response — emailed lead details to ${lead.customer_name}.`
+          : `Emailed lead details to ${lead.customer_name}.`
         break
       case 'contact':
         newStatus = 'CONTACTED'
-        eventType = 'CUSTOMER_CONTACTED'
-        description = `Lead marked as Contacted by system dispatcher.`
+        isFirstResponse = lead.status === 'NEW'
+        eventType = isFirstResponse ? 'FIRST_RESPONSE' : 'STATUS_CHANGED'
+        description = isFirstResponse
+          ? `First response — lead marked as Contacted by system dispatcher.`
+          : `Lead marked as Contacted by system dispatcher.`
         break
       case 'schedule':
         newStatus = 'SCHEDULED'
-        eventType = 'JOB_SCHEDULED'
+        eventType = 'APPOINTMENT_CREATED'
         description = `Technician appointment site visit scheduled.`
         break
       case 'complete':
         newStatus = 'COMPLETED'
-        eventType = 'JOB_COMPLETED'
+        eventType = 'LEAD_COMPLETED'
         description = `HVAC job completed successfully by on-site technician.`
         break
     }
@@ -102,7 +144,9 @@ export async function triggerLeadAction(
     }
 
     // 6. Sync status update inside Supabase
-    if (newStatus !== lead.status) {
+    const statusChanged = newStatus !== lead.status
+
+    if (statusChanged) {
       const { error: updateError } = await (supabase.from('hvac_leads') as any)
         .update({ status: newStatus })
         .eq('id', leadId)
@@ -112,21 +156,71 @@ export async function triggerLeadAction(
       }
     }
 
-    // 7. Insert the event tracking history audit record
-    const { error: eventError } = await (supabase.from('lead_events') as any)
-      .insert({
-        lead_id: leadId,
-        event_type: eventType,
-        description: description,
-        metadata: {
-          action_type: actionType,
-          webhook_dispatched: !!n8nWebhookUrl
-        },
-        created_by: user.id
+    // 7. Insert primary event tracking history audit record
+    const primaryEventError = await insertLeadEvent({
+      supabase,
+      leadId,
+      eventType,
+      description,
+      metadata: {
+        action_type: actionType,
+        webhook_dispatched: !!n8nWebhookUrl
+      },
+      createdBy: user.id
+    })
+
+    if (primaryEventError) {
+      logger.error(`Database failed to log lead event for action: ${actionType}`, primaryEventError as any)
+    }
+
+    // 8. Insert STATUS_CHANGED event when status actually changed
+    if (statusChanged) {
+      const statusEventErr = await insertLeadEvent({
+        supabase,
+        leadId,
+        eventType: 'STATUS_CHANGED',
+        description: `Lead status changed from ${lead.status} to ${newStatus}.`,
+        metadata: { from: lead.status, to: newStatus, action_type: actionType },
+        createdBy: user.id
       })
 
-    if (eventError) {
-      logger.error(`Database failed to log lead event for action: ${actionType}`, eventError as any)
+      if (statusEventErr) {
+        logger.error('Failed to log STATUS_CHANGED event', statusEventErr as any)
+      }
+    }
+
+    // 9. If lead completed, complete any active appointments
+    if (newStatus === 'COMPLETED' && statusChanged) {
+      try {
+        const { data: activeApps } = await (supabase.from('appointments') as any)
+          .select('id')
+          .eq('lead_id', leadId)
+          .in('status', ['Scheduled', 'Confirmed'])
+
+        if (activeApps && activeApps.length > 0) {
+          const appIds = activeApps.map((a: any) => a.id)
+
+          await (supabase.from('appointments') as any)
+            .update({ status: 'Completed', updated_at: new Date().toISOString() })
+            .in('id', appIds)
+
+          for (const app of activeApps) {
+            const appEventErr = await insertLeadEvent({
+              supabase,
+              leadId,
+              eventType: 'APPOINTMENT_COMPLETED',
+              description: `Appointment completed as part of lead completion.`,
+              metadata: { appointment_id: app.id, completed_via: 'lead_completion' },
+              createdBy: user.id
+            })
+            if (appEventErr) {
+              logger.error('Failed to log APPOINTMENT_COMPLETED event', appEventErr as any)
+            }
+          }
+        }
+      } catch (appErr) {
+        logger.error('Failed to complete appointments during lead completion', appErr as Error)
+      }
     }
 
     logger.info(`Lead action successfully executed: ${actionType} on lead ${leadId}`)
@@ -170,17 +264,45 @@ export async function updateLeadStatusDirectly(
       throw new AppError(`Failed to sync status: ${updateError.message}`, 'DB_UPDATE_ERROR')
     }
 
-    // Log the action event
-    const { error: eventError } = await (supabase.from('lead_events') as any).insert({
-      lead_id: leadId,
-      event_type: 'STATUS_CHANGED',
-      description: `Lead status updated from ${previousStatus} to ${newStatus} via pipeline board.`,
-      metadata: { previous_status: previousStatus, new_status: newStatus },
-      created_by: user.id
+    // Log the STATUS_CHANGED audit event with from/to metadata
+    const statusEventErr = await insertLeadEvent({
+      supabase,
+      leadId,
+      eventType: 'STATUS_CHANGED',
+      description: `Lead status changed from ${previousStatus} to ${newStatus} via pipeline board.`,
+      metadata: { from: previousStatus, to: newStatus },
+      createdBy: user.id
     })
 
-    if (eventError) {
-      logger.error('Failed to log drag and drop lead event', eventError as any)
+    if (statusEventErr) {
+      logger.error('Failed to log status change event', statusEventErr as any)
+    }
+
+    // Emit lifecycle event for terminal statuses
+    if (newStatus === 'COMPLETED') {
+      const completedEventErr = await insertLeadEvent({
+        supabase,
+        leadId,
+        eventType: 'LEAD_COMPLETED',
+        description: `Lead completed from pipeline board.`,
+        metadata: { previous_status: previousStatus },
+        createdBy: user.id
+      })
+      if (completedEventErr) {
+        logger.error('Failed to log LEAD_COMPLETED event', completedEventErr as any)
+      }
+    } else if (newStatus === 'LOST') {
+      const lostEventErr = await insertLeadEvent({
+        supabase,
+        leadId,
+        eventType: 'LEAD_LOST',
+        description: `Lead marked as lost from pipeline board.`,
+        metadata: { previous_status: previousStatus },
+        createdBy: user.id
+      })
+      if (lostEventErr) {
+        logger.error('Failed to log LEAD_LOST event', lostEventErr as any)
+      }
     }
 
     logger.info(`Lead status directly modified: ${leadId} from ${previousStatus} to ${newStatus}`)
@@ -223,13 +345,35 @@ export async function bulkUpdateLeadStatus(
         lead_id: id,
         event_type: 'STATUS_CHANGED',
         description: `Lead status updated to ${newStatus} via bulk operations toolbar.`,
-        metadata: { bulk: true, new_status: newStatus },
+        metadata: { bulk: true, to: newStatus },
         created_by: user.id
       }))
     )
 
     if (bulkEventErr) {
       logger.error('Failed to record bulk lead change history events', bulkEventErr as any)
+    }
+
+    // Emit lifecycle events for terminal statuses
+    if (newStatus === 'COMPLETED' || newStatus === 'LOST') {
+      const lifecycleType = newStatus === 'COMPLETED' ? 'LEAD_COMPLETED' : 'LEAD_LOST'
+      const lifecycleDesc = newStatus === 'COMPLETED'
+        ? 'Lead completed via bulk operations.'
+        : 'Lead marked as lost via bulk operations.'
+
+      const { error: lifecycleErr } = await (supabase.from('lead_events') as any).insert(
+        leadIds.map(id => ({
+          lead_id: id,
+          event_type: lifecycleType,
+          description: lifecycleDesc,
+          metadata: { bulk: true },
+          created_by: user.id
+        }))
+      )
+
+      if (lifecycleErr) {
+        logger.error(`Failed to record ${lifecycleType} bulk events`, lifecycleErr as any)
+      }
     }
 
     logger.info(`Bulk status update succeeded for ${leadIds.length} leads to ${newStatus}`)
@@ -320,10 +464,10 @@ export async function scheduleAppointment(
 
     if (leadError) throw new AppError(`Failed to update main lead status: ${leadError.message}`, 'DB_UPDATE_ERROR')
 
-    // 3. Log the status changed / appointment booked timeline event
+    // 3. Log the APPOINTMENT_CREATED event
     await (supabase.from('lead_events') as any).insert({
       lead_id: leadId,
-      event_type: 'STATUS_CHANGED',
+      event_type: 'APPOINTMENT_CREATED',
       description: `Technician site visit booked for ${validated.date} at ${validated.time} (${validated.type}).`,
       metadata: { appointment_date: validated.date, appointment_time: validated.time, appointment_type: validated.type },
       created_by: user.id
@@ -510,9 +654,95 @@ export async function completeReminder(reminderId: string, leadId: string): Prom
     revalidatePath('/dashboard')
     revalidatePath('/leads')
     revalidatePath('/crm')
-    
+
     return { success: true, message: 'Reminder marked completed.' }
   } catch (err) {
     return handleServerError(err, 'Failed to update reminder status.')
+  }
+}
+
+/**
+ * FEATURE S3: Update an existing appointment (date, time, type, notes).
+ */
+export async function updateAppointment(
+  appointmentId: string,
+  date: string,
+  time: string,
+  type: string,
+  notes: string
+): Promise<ServerResponse> {
+  try {
+    const supabase = await createClient()
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    if (authError || !user) throw new AppError('Unauthorized session.', 'UNAUTHORIZED')
+
+    const parsed = appointmentUpdateSchema.safeParse({ date, time, type, notes })
+    if (!parsed.success) {
+      const issueMessage = parsed.error.issues[0]?.message ?? 'Invalid input'
+      throw new AppError(`Validation failed: ${issueMessage}`, 'VALIDATION_ERROR')
+    }
+    const validated = parsed.data
+
+    const { error: updateErr } = await (supabase.from('appointments') as any)
+      .update({
+        appointment_date: validated.date,
+        appointment_time: validated.time,
+        appointment_type: validated.type,
+        notes: validated.notes || null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', appointmentId)
+
+    if (updateErr) throw new AppError(`Failed to update appointment: ${updateErr.message}`, 'DB_UPDATE_ERROR')
+
+    logger.info(`Appointment ${appointmentId} updated successfully`)
+
+    revalidatePath('/dashboard')
+    revalidatePath('/leads')
+    revalidatePath('/crm')
+
+    return { success: true, message: 'Appointment updated successfully.' }
+  } catch (err) {
+    return handleServerError(err, 'Failed to update appointment.')
+  }
+}
+
+/**
+ * FEATURE S3: Edit an existing note content.
+ */
+export async function updateLeadNote(noteId: string, noteText: string): Promise<ServerResponse> {
+  try {
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      return { success: false, message: 'Unauthorized.', error: { code: 'UNAUTHORIZED' } }
+    }
+
+    const parsed = noteUpdateSchema.safeParse({ note: noteText })
+    if (!parsed.success) {
+      return {
+        success: false,
+        message: parsed.error.issues[0]?.message ?? 'Invalid note',
+        error: { code: 'VALIDATION_ERROR' }
+      }
+    }
+
+    const validatedNote = parsed.data.note
+
+    const { error: noteError } = await (supabase.from('lead_notes') as any)
+      .update({ note: validatedNote })
+      .eq('id', noteId)
+
+    if (noteError) throw new AppError(`Note update rejected: ${noteError.message}`, 'DB_UPDATE_ERROR')
+
+    logger.info(`Note ${noteId} updated successfully`)
+
+    revalidatePath('/dashboard')
+    revalidatePath('/leads')
+    revalidatePath('/crm')
+
+    return { success: true, message: 'Note updated successfully.' }
+  } catch (err) {
+    return handleServerError(err, 'Failed to update note.')
   }
 }

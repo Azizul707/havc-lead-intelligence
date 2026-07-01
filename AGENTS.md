@@ -1,5 +1,17 @@
 # AGENTS.md
 
+
+## Documentation Rules
+
+Never scan the entire repository unless explicitly requested.
+
+Always inspect only the folders required for the current task.
+
+Treat the current implementation as the source of truth.
+
+Ignore outdated documentation unless asked to update it.
+
+
 ## Project
 
 HVAC AI Lead Intelligence Platform

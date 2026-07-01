@@ -4,24 +4,30 @@
 import React, { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { 
+import {
   X, Phone, Mail, Clock3, Sparkles, ArrowRight, UserCheck,
   CheckCircle2, Loader2, FileText, Trash2, Calendar,
-  Copy, Map, PlusCircle, Activity, BellRing
+  Copy, Map, PlusCircle, Activity, BellRing, Pencil,
+  AlertTriangle, XCircle, Eye, CalendarCheck,
+  ThumbsDown
 } from 'lucide-react'
 import { createClient } from '../../lib/supabase/client'
 import { formatRelativeTime } from '../../lib/utils/time'
-import { 
+import {
   appointmentSchema, noteSchema, reminderSchema,
-  AppointmentInput, NoteInput, ReminderInput 
+  appointmentUpdateSchema,
+  AppointmentInput, NoteInput, ReminderInput,
+  AppointmentUpdateInput
 } from '../../lib/schemas'
-import { 
-  triggerLeadAction, 
-  scheduleAppointment, 
-  addLeadNote, 
-  deleteLeadNote, 
-  createReminder, 
-  completeReminder 
+import {
+  triggerLeadAction,
+  scheduleAppointment,
+  addLeadNote,
+  deleteLeadNote,
+  createReminder,
+  completeReminder,
+  updateAppointment,
+  updateLeadNote
 } from '../../app/(authenticated)/dashboard/actions'
 
 interface Lead {
@@ -90,10 +96,10 @@ interface LeadDetailsDrawerProps {
   onStatusUpdated?: (newStatus: any) => void
 }
 
-export default function LeadDetailsDrawer({ 
+export default function LeadDetailsDrawer({
   selectedLead,
   onClose,
-  onStatusUpdated 
+  onStatusUpdated
 }: LeadDetailsDrawerProps) {
   const supabase = createClient()
 
@@ -107,10 +113,30 @@ export default function LeadDetailsDrawer({
   const [showAppModal, setShowAppModal] = useState(false)
   const [showRemForm, setShowRemForm] = useState(false)
   const [toastMsg, setToastMsg] = useState<string | null>(null)
+  const [toastType, setToastType] = useState<'success' | 'error'>('success')
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+
+  // Confirmation dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    type: 'complete' | 'lost' | 'deleteNote'
+    noteId?: string
+    title: string
+    message: string
+  } | null>(null)
+
+  // Appointment editing state
+  const [editAppointment, setEditAppointment] = useState<Appointment | null>(null)
+
+  // Note editing state
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null)
+  const [editingNoteText, setEditingNoteText] = useState('')
+  const [noteEditLoading, setNoteEditLoading] = useState(false)
 
   // Exit Animation State
   const [isClosing, setIsClosing] = useState(false)
+
+  // Track LEAD_VIEWED insertion per lead to avoid duplicates
+  const viewedLeadRef = React.useRef<string | null>(null)
 
   // Initialize RHF for Dispatch Notes
   const {
@@ -122,7 +148,7 @@ export default function LeadDetailsDrawer({
     resolver: zodResolver(noteSchema)
   })
 
-  // Initialize RHF for Appointments Form
+  // Initialize RHF for Appointments Form (create)
   const {
     register: registerApp,
     handleSubmit: handleSubmitApp,
@@ -130,6 +156,17 @@ export default function LeadDetailsDrawer({
     formState: { errors: errorsApp, isSubmitting: isSubmittingApp }
   } = useForm<AppointmentInput>({
     resolver: zodResolver(appointmentSchema)
+  })
+
+  // Initialize RHF for Appointment Edit Form
+  const {
+    register: registerAppEdit,
+    handleSubmit: handleSubmitAppEdit,
+    reset: resetAppEdit,
+    setValue: setAppEditValue,
+    formState: { errors: errorsAppEdit, isSubmitting: isSubmittingAppEdit }
+  } = useForm<AppointmentUpdateInput>({
+    resolver: zodResolver(appointmentUpdateSchema)
   })
 
   // Initialize RHF for Reminders Form
@@ -141,6 +178,16 @@ export default function LeadDetailsDrawer({
   } = useForm<ReminderInput>({
     resolver: zodResolver(reminderSchema)
   })
+
+  // Populate appointment edit form when editing
+  useEffect(() => {
+    if (editAppointment) {
+      setAppEditValue('date', editAppointment.appointment_date)
+      setAppEditValue('time', editAppointment.appointment_time)
+      setAppEditValue('type', editAppointment.appointment_type as any)
+      setAppEditValue('notes', editAppointment.notes || '')
+    }
+  }, [editAppointment, setAppEditValue])
 
   // Supabase Realtime subscriptions & Initial data fetches
   useEffect(() => {
@@ -158,6 +205,26 @@ export default function LeadDetailsDrawer({
 
       const { data: remData } = await supabase.from('reminders').select('*').eq('lead_id', selectedLead.id).order('created_at', { ascending: false })
       setReminders(remData as Reminder[] || [])
+
+      // LEAD_VIEWED: insert only once per lead
+      if (viewedLeadRef.current !== selectedLead.id) {
+        viewedLeadRef.current = selectedLead.id
+        const { data: existingView } = await (supabase.from('lead_events') as any)
+          .select('id')
+          .eq('lead_id', selectedLead.id)
+          .eq('event_type', 'LEAD_VIEWED')
+          .maybeSingle()
+
+        if (!existingView) {
+          await (supabase.from('lead_events') as any).insert({
+            lead_id: selectedLead.id,
+            event_type: 'LEAD_VIEWED',
+            description: `Lead details viewed by dispatcher.`,
+            metadata: {},
+            created_by: null
+          })
+        }
+      }
     }
 
     fetchData()
@@ -169,6 +236,7 @@ export default function LeadDetailsDrawer({
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'lead_notes', filter: `lead_id=eq.${selectedLead.id}` }, (p) => {
         if (p.eventType === 'INSERT') setNotes(prev => [p.new as LeadNote, ...prev])
+        if (p.eventType === 'UPDATE') setNotes(prev => prev.map(n => n.id === p.new.id ? { ...n, ...p.new } : n))
         if (p.eventType === 'DELETE') setNotes(prev => prev.filter(n => n.id !== p.old.id))
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'appointments', filter: `lead_id=eq.${selectedLead.id}` }, (p) => {
@@ -186,15 +254,16 @@ export default function LeadDetailsDrawer({
     }
   }, [selectedLead, supabase])
 
-  // Custom close handler to trigger smooth slide-out before unmounting (Feature 10)
+  // Custom close handler to trigger smooth slide-out before unmounting
   const handleCloseWithAnimation = () => {
     setIsClosing(true)
     setTimeout(() => {
       onClose()
-    }, 200) // Match transition duration (200ms)
+    }, 200)
   }
 
-  const triggerToast = (msg: string) => {
+  const triggerToast = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToastType(type)
     setToastMsg(msg)
     setTimeout(() => setToastMsg(null), 2500)
   }
@@ -208,7 +277,47 @@ export default function LeadDetailsDrawer({
     window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(city)}`, '_blank')
   }
 
-  const handleAction = async (action: 'call' | 'contact' | 'complete') => {
+  // --- Confirm Dialog Actions ---
+
+  const executeConfirmedAction = async () => {
+    if (!confirmDialog) return
+
+    const dialog = confirmDialog
+    setConfirmDialog(null)
+    setActionLoading(dialog.type)
+
+    if (dialog.type === 'complete') {
+      const res = await triggerLeadAction(selectedLead.id, 'complete')
+      if (res.success) {
+        if (onStatusUpdated) onStatusUpdated('COMPLETED')
+        triggerToast('Lead marked as Completed.')
+      } else {
+        triggerToast(`Failed: ${res.error}`, 'error')
+      }
+    } else if (dialog.type === 'lost') {
+      const { updateLeadStatusDirectly } = await import('../../app/(authenticated)/dashboard/actions')
+      const res = await updateLeadStatusDirectly(selectedLead.id, 'LOST', selectedLead.status)
+      if (res.success) {
+        if (onStatusUpdated) onStatusUpdated('LOST')
+        triggerToast('Lead marked as Lost.')
+      } else {
+        triggerToast(`Failed: ${res.error}`, 'error')
+      }
+    } else if (dialog.type === 'deleteNote' && dialog.noteId) {
+      const res = await deleteLeadNote(dialog.noteId, selectedLead.id)
+      if (res.success) {
+        triggerToast('Note deleted successfully.')
+      } else {
+        triggerToast(`Failed: ${res.error}`, 'error')
+      }
+    }
+
+    setActionLoading(null)
+  }
+
+  // --- Quick Actions ---
+
+  const handleAction = async (action: 'call' | 'contact') => {
     setActionLoading(action)
     const res = await triggerLeadAction(selectedLead.id, action)
     if (res.success) {
@@ -216,12 +325,14 @@ export default function LeadDetailsDrawer({
       if (newStatus && onStatusUpdated) {
         onStatusUpdated(newStatus)
       }
-      triggerToast(`Lead successfully marked as ${action.toUpperCase()}`)
+      triggerToast(`Action completed.`)
     } else {
-      triggerToast(`Failed: ${res.error}`)
+      triggerToast(`Failed: ${res.error}`, 'error')
     }
     setActionLoading(null)
   }
+
+  // --- Appointment Create ---
 
   const onScheduleAppSubmit = async (data: AppointmentInput) => {
     const res = await scheduleAppointment(selectedLead.id, data.date, data.time, data.type, data.notes || '')
@@ -231,9 +342,34 @@ export default function LeadDetailsDrawer({
       resetApp()
       triggerToast('Appointment scheduled successfully!')
     } else {
-      alert(`Error: ${res.error}`)
+      triggerToast(`Error: ${res.error}`, 'error')
     }
   }
+
+  // --- Appointment Edit ---
+
+  const onEditAppSubmit = async (data: AppointmentUpdateInput) => {
+    if (!editAppointment) return
+    const res = await updateAppointment(editAppointment.id, data.date, data.time, data.type, data.notes || '')
+    if (res.success) {
+      setEditAppointment(null)
+      resetAppEdit()
+      triggerToast('Appointment updated successfully!')
+    } else {
+      triggerToast(`Error: ${res.error}`, 'error')
+    }
+  }
+
+  const openEditAppointment = (app: Appointment) => {
+    setEditAppointment(app)
+  }
+
+  const closeEditAppointment = () => {
+    setEditAppointment(null)
+    resetAppEdit()
+  }
+
+  // --- Notes ---
 
   const onAddNoteSubmit = async (data: NoteInput) => {
     const res = await addLeadNote(selectedLead.id, data.note)
@@ -241,19 +377,35 @@ export default function LeadDetailsDrawer({
       resetNote()
       triggerToast('Dispatch note saved!')
     } else {
-      triggerToast(`Failed to save note: ${res.error}`)
+      triggerToast(`Failed to save note: ${res.error}`, 'error')
     }
   }
 
-  const handleDeleteNote = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this internal note?')) return
-    const res = await deleteLeadNote(id, selectedLead.id)
-    if (res.success) {
-      triggerToast('Note deleted successfully.')
-    } else {
-      triggerToast(`Failed: ${res.error}`)
-    }
+  const startEditNote = (note: LeadNote) => {
+    setEditingNoteId(note.id)
+    setEditingNoteText(note.note)
   }
+
+  const cancelEditNote = () => {
+    setEditingNoteId(null)
+    setEditingNoteText('')
+  }
+
+  const saveEditNote = async () => {
+    if (!editingNoteId) return
+    setNoteEditLoading(true)
+    const res = await updateLeadNote(editingNoteId, editingNoteText)
+    if (res.success) {
+      triggerToast('Note updated successfully!')
+      setEditingNoteId(null)
+      setEditingNoteText('')
+    } else {
+      triggerToast(`Failed to update note: ${res.error}`, 'error')
+    }
+    setNoteEditLoading(false)
+  }
+
+  // --- Reminders ---
 
   const onAddReminderSubmit = async (data: ReminderInput) => {
     const res = await createReminder(selectedLead.id, data.date, data.time, data.priority, data.message)
@@ -262,7 +414,7 @@ export default function LeadDetailsDrawer({
       resetRem()
       triggerToast('Follow-up reminder set!')
     } else {
-      alert(`Error: ${res.error}`)
+      triggerToast(`Error: ${res.error}`, 'error')
     }
   }
 
@@ -271,7 +423,7 @@ export default function LeadDetailsDrawer({
     if (res.success) {
       triggerToast('Reminder marked as completed!')
     } else {
-      triggerToast(`Failed: ${res.error}`)
+      triggerToast(`Failed: ${res.error}`, 'error')
     }
   }
 
@@ -287,39 +439,49 @@ export default function LeadDetailsDrawer({
   const getEventIcon = (eventType: string) => {
     switch (eventType) {
       case 'LEAD_CREATED': return <PlusCircle className="h-4 w-4 text-primary-custom" />
+      case 'LEAD_RECEIVED': return <PlusCircle className="h-4 w-4 text-primary-custom" />
+      case 'LEAD_VIEWED': return <Eye className="h-4 w-4 text-info-custom" />
       case 'AI_ANALYZED': return <Sparkles className="h-4 w-4 text-success-custom" />
+      case 'FIRST_RESPONSE': return <UserCheck className="h-4 w-4 text-success-custom" />
       case 'STATUS_CHANGED': return <Activity className="h-4 w-4 text-warning-custom" />
       case 'EMAIL_SENT': return <Mail className="h-4 w-4 text-info-custom" />
       case 'NOTE_ADDED': return <FileText className="h-4 w-4 text-primary-custom" />
+      case 'APPOINTMENT_CREATED': return <CalendarCheck className="h-4 w-4 text-info-custom" />
+      case 'APPOINTMENT_COMPLETED': return <CheckCircle2 className="h-4 w-4 text-success-custom" />
+      case 'LEAD_COMPLETED': return <CheckCircle2 className="h-4 w-4 text-success-custom" />
+      case 'LEAD_LOST': return <ThumbsDown className="h-4 w-4 text-danger-custom" />
       default: return <Clock3 className="h-4 w-4 text-text-secondary" />
     }
   }
 
   const activeApp = appointments.find(a => a.status === 'Scheduled' || a.status === 'Confirmed')
+  const isTerminal = selectedLead.status === 'COMPLETED' || selectedLead.status === 'LOST'
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden flex justify-end">
-      {/* Backdrop fading out smoothly on close */}
-      <div 
+      {/* Backdrop */}
+      <div
         className={`fixed inset-0 bg-black/20 backdrop-blur-xs transition-all duration-200 ${
           isClosing ? 'opacity-0 backdrop-blur-none pointer-events-none' : 'opacity-100'
-        }`} 
-        onClick={onClose} 
+        }`}
+        onClick={onClose}
       />
 
-      {/* Main Drawer Sheet Container sliding smoothly from right (150ms-250ms) */}
+      {/* Main Drawer Sheet */}
       <div className={`relative w-full max-w-2xl bg-surface h-full shadow-2xl border-l border-border-custom flex flex-col transition-transform duration-200 ease-in-out ${
         isClosing ? 'translate-x-full' : 'translate-x-0'
       } ${!isClosing ? 'animate-slide-in' : ''}`}>
-        
-        {/* Floating Toast Notification Feedback */}
+
+        {/* Floating Toast Notification */}
         {toastMsg && (
-          <div className="absolute top-4 left-4 z-50 px-4 py-2.5 bg-text-primary text-background rounded-button text-xs font-semibold flex items-center space-x-2 shadow-2xl animate-fade-in">
+          <div className={`absolute top-4 left-4 z-50 px-4 py-2.5 rounded-button text-xs font-semibold flex items-center space-x-2 shadow-2xl animate-fade-in ${
+            toastType === 'error' ? 'bg-danger-custom text-white' : 'bg-text-primary text-background'
+          }`}>
             <span>{toastMsg}</span>
           </div>
         )}
 
-        {/* Improved Lead Details Header */}
+        {/* Header */}
         <div className="px-6 py-5 border-b border-border-custom bg-background/50 flex flex-col space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
@@ -383,10 +545,10 @@ export default function LeadDetailsDrawer({
 
         {/* Scrollable Two-Column Layout */}
         <div className="flex-1 overflow-y-auto p-6 md:p-8 grid grid-cols-1 md:grid-cols-12 gap-8">
-          
+
           {/* LEFT COLUMN: Notes & Reminders & Timeline */}
           <div className="md:col-span-7 space-y-6">
-            
+
             {/* Note Logging Widget */}
             <div className="space-y-3">
               <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider flex items-center space-x-1.5">
@@ -415,17 +577,59 @@ export default function LeadDetailsDrawer({
                 </button>
               </form>
 
-              {/* Note Lists */}
+              {/* Note List */}
               <div className="space-y-2.5 max-h-45 overflow-y-auto pr-1">
                 {notes.map(note => (
                   <div key={note.id} className="bg-background border border-border-custom p-3.5 rounded-card flex items-start justify-between gap-3 hover:border-primary-custom/25 transition-colors">
-                    <div className="space-y-1">
-                      <p className="text-xs font-semibold leading-relaxed text-text-primary">{note.note}</p>
-                      <span className="text-[10px] text-text-muted font-medium">{formatRelativeTime(note.created_at)} • Dispatcher logged</span>
-                    </div>
-                    <button onClick={() => handleDeleteNote(note.id)} className="text-text-muted hover:text-danger-custom transition-colors p-1 cursor-pointer">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
+                    {editingNoteId === note.id ? (
+                      <div className="flex-1 space-y-2">
+                        <textarea
+                          value={editingNoteText}
+                          onChange={(e) => setEditingNoteText(e.target.value)}
+                          rows={2}
+                          className="w-full p-2 bg-surface border border-border-custom rounded-input text-xs text-text-primary leading-relaxed resize-none"
+                        />
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={saveEditNote}
+                            disabled={noteEditLoading}
+                            className="px-3 py-1 bg-primary-custom text-white hover:bg-primary-hover text-xs font-semibold rounded-button cursor-pointer disabled:opacity-50 flex items-center space-x-1"
+                          >
+                            {noteEditLoading && <Loader2 className="h-3 w-3 animate-spin" />}
+                            <span>Save</span>
+                          </button>
+                          <button
+                            onClick={cancelEditNote}
+                            className="px-3 py-1 border border-border-custom hover:bg-surface text-xs font-semibold rounded-button cursor-pointer"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="space-y-1 flex-1">
+                          <p className="text-xs font-semibold leading-relaxed text-text-primary">{note.note}</p>
+                          <span className="text-[10px] text-text-muted font-medium">{formatRelativeTime(note.created_at)} • Dispatcher logged</span>
+                        </div>
+                        <div className="flex items-center space-x-1 shrink-0">
+                          <button onClick={() => startEditNote(note)} className="text-text-muted hover:text-primary-custom transition-colors p-1 cursor-pointer" title="Edit note">
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setConfirmDialog({
+                              type: 'deleteNote',
+                              noteId: note.id,
+                              title: 'Delete Note',
+                              message: 'Are you sure you want to delete this internal note?'
+                            })}
+                            className="text-text-muted hover:text-danger-custom transition-colors p-1 cursor-pointer"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
@@ -438,7 +642,7 @@ export default function LeadDetailsDrawer({
                   <BellRing className="h-4 w-4 text-warning-custom" />
                   <span>Dispatcher Follow-ups</span>
                 </h4>
-                <button 
+                <button
                   onClick={() => setShowRemForm(!showRemForm)}
                   className="text-xs text-primary-custom hover:underline font-bold flex items-center space-x-1 cursor-pointer"
                 >
@@ -447,7 +651,6 @@ export default function LeadDetailsDrawer({
                 </button>
               </div>
 
-              {/* Reminder Form */}
               {showRemForm && (
                 <form onSubmit={handleSubmitRem(onAddReminderSubmit)} className="bg-background border border-border-custom p-4 rounded-card space-y-4 animate-fade-in">
                   <div className="grid grid-cols-2 gap-3">
@@ -474,11 +677,11 @@ export default function LeadDetailsDrawer({
                     </div>
                     <div className="col-span-2">
                       <label className="block text-[11px] font-bold text-text-secondary mb-1">Instruction Message</label>
-                      <input 
+                      <input
                         {...registerRem('message')}
-                        type="text" 
-                        placeholder="e.g. Call back customer for quote confirmation" 
-                        className={`w-full px-2.5 py-1.5 bg-surface border rounded-input text-xs ${errorsRem.message ? 'border-danger-custom' : 'border-border-custom'}`} 
+                        type="text"
+                        placeholder="e.g. Call back customer for quote confirmation"
+                        className={`w-full px-2.5 py-1.5 bg-surface border rounded-input text-xs ${errorsRem.message ? 'border-danger-custom' : 'border-border-custom'}`}
                       />
                       {errorsRem.message && <p className="text-[10px] text-danger-custom font-semibold mt-0.5">{errorsRem.message.message}</p>}
                     </div>
@@ -541,13 +744,13 @@ export default function LeadDetailsDrawer({
 
           </div>
 
-          {/* Right Column: Metrics, Routing, Appointments */}
+          {/* RIGHT COLUMN: Metrics, Routing, Appointments */}
           <div className="md:col-span-5 space-y-6">
-            
-            {/* Appointment status widget */}
+
+            {/* Appointment Widget */}
             <div className="space-y-3">
               <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Appointment Reservation</h4>
-              
+
               <div className="bg-background border border-border-custom p-4 rounded-card space-y-3 text-sm">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-text-secondary">Appt Status</span>
@@ -563,6 +766,13 @@ export default function LeadDetailsDrawer({
                     <div>Time: <span className="font-semibold">{activeApp.appointment_time}</span></div>
                     <div>Type: <span className="font-semibold">{activeApp.appointment_type}</span></div>
                     {activeApp.notes && <div className="truncate">Notes: {activeApp.notes}</div>}
+                    <button
+                      onClick={() => openEditAppointment(activeApp)}
+                      className="mt-2 w-full flex items-center justify-center space-x-1.5 px-3 py-1.5 bg-background hover:bg-border-custom border border-border-custom rounded-button text-xs font-semibold text-text-primary transition-colors cursor-pointer"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      <span>Edit Appointment</span>
+                    </button>
                   </div>
                 )}
 
@@ -576,7 +786,7 @@ export default function LeadDetailsDrawer({
               </div>
             </div>
 
-            {/* AI analysis */}
+            {/* AI Analysis */}
             <div className="space-y-4">
               <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Intelligence Metrics</h4>
               <div className="bg-background border border-border-custom p-4 rounded-card flex items-center justify-between">
@@ -609,28 +819,27 @@ export default function LeadDetailsDrawer({
               </div>
             </div>
 
-            {/* Quick CRM Action Button States */}
+            {/* Quick CRM Action Buttons */}
             <div className="space-y-4">
               <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Quick CRM Actions</h4>
-              {toastMsg && (
-                <div className="p-3 bg-primary-custom/5 text-primary-custom text-xs font-semibold rounded-input border border-primary-custom/10">
-                  {toastMsg}
-                </div>
-              )}
 
               <div className="grid grid-cols-1 gap-2.5">
-                <button
-                  onClick={() => handleAction('call')}
-                  disabled={actionLoading !== null}
-                  className="w-full flex items-center justify-between px-4 py-2.5 bg-background hover:bg-border-custom border border-border-custom rounded-button text-sm font-semibold transition-colors text-text-primary disabled:opacity-50 cursor-pointer"
-                >
-                  <span className="flex items-center space-x-2.5">
-                    <Phone className="h-4 w-4 text-primary-custom" />
-                    <span>Call Customer</span>
-                  </span>
-                  {actionLoading === 'call' && <Loader2 className="h-4 w-4 animate-spin text-primary-custom" />}
-                </button>
+                {/* Call button (always visible unless terminal) */}
+                {!isTerminal && (
+                  <button
+                    onClick={() => handleAction('call')}
+                    disabled={actionLoading !== null}
+                    className="w-full flex items-center justify-between px-4 py-2.5 bg-background hover:bg-border-custom border border-border-custom rounded-button text-sm font-semibold transition-colors text-text-primary disabled:opacity-50 cursor-pointer"
+                  >
+                    <span className="flex items-center space-x-2.5">
+                      <Phone className="h-4 w-4 text-primary-custom" />
+                      <span>Call Customer</span>
+                    </span>
+                    {actionLoading === 'call' && <Loader2 className="h-4 w-4 animate-spin text-primary-custom" />}
+                  </button>
+                )}
 
+                {/* Mark Contacted (only when NEW) */}
                 {selectedLead.status === 'NEW' && (
                   <button
                     onClick={() => handleAction('contact')}
@@ -644,14 +853,52 @@ export default function LeadDetailsDrawer({
                     {actionLoading === 'contact' && <Loader2 className="h-4 w-4 animate-spin text-warning-custom" />}
                   </button>
                 )}
+
+                {/* Mark Completed (when not already terminal) */}
+                {selectedLead.status !== 'COMPLETED' && selectedLead.status !== 'LOST' && (
+                  <button
+                    onClick={() => setConfirmDialog({
+                      type: 'complete',
+                      title: 'Mark Lead Completed',
+                      message: 'Are you sure you want to mark this lead as Completed? Any active appointments will also be completed.'
+                    })}
+                    disabled={actionLoading !== null}
+                    className="w-full flex items-center justify-between px-4 py-2.5 bg-background hover:bg-border-custom border border-border-custom rounded-button text-sm font-semibold transition-colors text-text-primary disabled:opacity-50 cursor-pointer"
+                  >
+                    <span className="flex items-center space-x-2.5">
+                      <CheckCircle2 className="h-4 w-4 text-success-custom" />
+                      <span>Mark Completed</span>
+                    </span>
+                    {actionLoading === 'complete' && <Loader2 className="h-4 w-4 animate-spin text-success-custom" />}
+                  </button>
+                )}
+
+                {/* Mark Lost (when not terminal) */}
+                {selectedLead.status !== 'COMPLETED' && selectedLead.status !== 'LOST' && (
+                  <button
+                    onClick={() => setConfirmDialog({
+                      type: 'lost',
+                      title: 'Mark Lead Lost',
+                      message: 'Are you sure you want to mark this lead as Lost? This action will close the lead.'
+                    })}
+                    disabled={actionLoading !== null}
+                    className="w-full flex items-center justify-between px-4 py-2.5 bg-background hover:bg-border-custom border border-border-custom rounded-button text-sm font-semibold transition-colors text-text-primary disabled:opacity-50 cursor-pointer"
+                  >
+                    <span className="flex items-center space-x-2.5">
+                      <XCircle className="h-4 w-4 text-danger-custom" />
+                      <span>Mark Lost</span>
+                    </span>
+                    {actionLoading === 'lost' && <Loader2 className="h-4 w-4 animate-spin text-danger-custom" />}
+                  </button>
+                )}
               </div>
             </div>
 
-            {/* Internal Notes Section */}
+            {/* Internal Notes Section (disabled - for future use) */}
             <div className="space-y-3">
               <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Internal Notes</h4>
               <div className="bg-background border border-border-custom p-4 rounded-card space-y-3">
-                <textarea 
+                <textarea
                   placeholder="Type internal notes for dispatch or technicians here..."
                   disabled
                   rows={3}
@@ -684,13 +931,47 @@ export default function LeadDetailsDrawer({
       </div>
 
       {/* ==========================================
-          FEATURE 2: SCHEDULE APPOINTMENT DIALOG MODAL
+          CONFIRMATION DIALOG
+          ========================================== */}
+      {confirmDialog && (
+        <div className="fixed inset-0 z-[60] overflow-hidden flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setConfirmDialog(null)} />
+          <div className="relative bg-surface w-full max-w-sm rounded-card border border-border-custom p-6 shadow-2xl space-y-4 animate-fade-in text-sm text-text-primary">
+            <div className="flex items-center space-x-3 pb-3 border-b border-border-custom">
+              <div className="h-8 w-8 rounded-full bg-warning-custom/10 flex items-center justify-center text-warning-custom">
+                <AlertTriangle className="h-4 w-4" />
+              </div>
+              <h3 className="font-bold text-sm">{confirmDialog.title}</h3>
+            </div>
+            <p className="text-xs text-text-secondary leading-relaxed">{confirmDialog.message}</p>
+            <div className="flex justify-end space-x-2 pt-2">
+              <button
+                onClick={() => setConfirmDialog(null)}
+                className="px-4 py-2 border border-border-custom hover:bg-background rounded-button text-xs font-semibold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={executeConfirmedAction}
+                disabled={actionLoading !== null}
+                className="px-4 py-2 bg-primary-custom text-white hover:bg-primary-hover rounded-button text-xs font-semibold cursor-pointer disabled:opacity-50 flex items-center space-x-1"
+              >
+                {actionLoading !== null && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                <span>Confirm</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==========================================
+          SCHEDULE APPOINTMENT DIALOG (Create)
           ========================================== */}
       {showAppModal && (
         <div className="fixed inset-0 z-50 overflow-hidden flex items-center justify-center p-4">
           <div className="fixed inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setShowAppModal(false)} />
           <div className="relative bg-surface w-full max-w-md rounded-card border border-border-custom p-6 shadow-2xl space-y-4 animate-fade-in text-sm text-text-primary">
-            
+
             <div className="flex items-center justify-between pb-3 border-b border-border-custom">
               <h3 className="font-bold text-base">Schedule Site Visit Appointment</h3>
               <button onClick={() => setShowAppModal(false)} className="p-1 rounded-button hover:bg-background cursor-pointer">
@@ -698,17 +979,16 @@ export default function LeadDetailsDrawer({
               </button>
             </div>
 
-            {/* Form validated via RHF */}
             <form onSubmit={handleSubmitApp(onScheduleAppSubmit)} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-text-secondary mb-1">Appointment Date</label>
-                  <input 
+                  <input
                     {...registerApp('date')}
-                    type="date" 
+                    type="date"
                     className={`w-full px-3 py-2 bg-background border rounded-input text-xs ${
                       errorsApp.date ? 'border-danger-custom' : 'border-border-custom'
-                    }`} 
+                    }`}
                   />
                   {errorsApp.date && (
                     <p className="text-xs text-danger-custom font-semibold mt-1">{errorsApp.date.message}</p>
@@ -716,12 +996,12 @@ export default function LeadDetailsDrawer({
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-text-secondary mb-1">Visit Time</label>
-                  <input 
+                  <input
                     {...registerApp('time')}
-                    type="time" 
+                    type="time"
                     className={`w-full px-3 py-2 bg-background border rounded-input text-xs ${
                       errorsApp.time ? 'border-danger-custom' : 'border-border-custom'
-                    }`} 
+                    }`}
                   />
                   {errorsApp.time && (
                     <p className="text-xs text-danger-custom font-semibold mt-1">{errorsApp.time.message}</p>
@@ -731,7 +1011,7 @@ export default function LeadDetailsDrawer({
 
               <div>
                 <label className="block text-xs font-bold text-text-secondary mb-1">Visit Type</label>
-                <select 
+                <select
                   {...registerApp('type')}
                   className="w-full px-3 py-2 bg-background border border-border-custom rounded-input text-xs cursor-pointer"
                 >
@@ -747,13 +1027,13 @@ export default function LeadDetailsDrawer({
 
               <div>
                 <label className="block text-xs font-bold text-text-secondary mb-1">Internal Notes for Technicians</label>
-                <textarea 
+                <textarea
                   {...registerApp('notes')}
-                  placeholder="Log details like gate codes, system brand, attic location..." 
-                  rows={3} 
+                  placeholder="Log details like gate codes, system brand, attic location..."
+                  rows={3}
                   className={`w-full p-2.5 bg-background border rounded-input text-xs resize-none ${
                     errorsApp.notes ? 'border-danger-custom' : 'border-border-custom'
-                  }`} 
+                  }`}
                 />
                 {errorsApp.notes && (
                   <p className="text-xs text-danger-custom font-semibold mt-1">{errorsApp.notes.message}</p>
@@ -765,6 +1045,95 @@ export default function LeadDetailsDrawer({
                 <button type="submit" disabled={isSubmittingApp} className="px-4 py-2 bg-primary-custom text-white hover:bg-primary-hover rounded-button text-xs font-semibold cursor-pointer disabled:opacity-50 flex items-center space-x-1">
                   {isSubmittingApp && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                   <span>Book Appointment</span>
+                </button>
+              </div>
+            </form>
+
+          </div>
+        </div>
+      )}
+
+      {/* ==========================================
+          EDIT APPOINTMENT DIALOG
+          ========================================== */}
+      {editAppointment && (
+        <div className="fixed inset-0 z-50 overflow-hidden flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-xs" onClick={closeEditAppointment} />
+          <div className="relative bg-surface w-full max-w-md rounded-card border border-border-custom p-6 shadow-2xl space-y-4 animate-fade-in text-sm text-text-primary">
+
+            <div className="flex items-center justify-between pb-3 border-b border-border-custom">
+              <h3 className="font-bold text-base">Edit Appointment</h3>
+              <button onClick={closeEditAppointment} className="p-1 rounded-button hover:bg-background cursor-pointer">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitAppEdit(onEditAppSubmit)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-text-secondary mb-1">Appointment Date</label>
+                  <input
+                    {...registerAppEdit('date')}
+                    type="date"
+                    className={`w-full px-3 py-2 bg-background border rounded-input text-xs ${
+                      errorsAppEdit.date ? 'border-danger-custom' : 'border-border-custom'
+                    }`}
+                  />
+                  {errorsAppEdit.date && (
+                    <p className="text-xs text-danger-custom font-semibold mt-1">{errorsAppEdit.date.message}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-text-secondary mb-1">Visit Time</label>
+                  <input
+                    {...registerAppEdit('time')}
+                    type="time"
+                    className={`w-full px-3 py-2 bg-background border rounded-input text-xs ${
+                      errorsAppEdit.time ? 'border-danger-custom' : 'border-border-custom'
+                    }`}
+                  />
+                  {errorsAppEdit.time && (
+                    <p className="text-xs text-danger-custom font-semibold mt-1">{errorsAppEdit.time.message}</p>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-text-secondary mb-1">Visit Type</label>
+                <select
+                  {...registerAppEdit('type')}
+                  className="w-full px-3 py-2 bg-background border border-border-custom rounded-input text-xs cursor-pointer"
+                >
+                  <option value="Installation">Equipment Installation</option>
+                  <option value="Repair">Emergency System Repair</option>
+                  <option value="Maintenance">Annual Maintenance Tune-Up</option>
+                  <option value="Diagnostic">Initial AI Ingested Diagnosis</option>
+                </select>
+                {errorsAppEdit.type && (
+                  <p className="text-xs text-danger-custom font-semibold mt-1">{errorsAppEdit.type.message}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-text-secondary mb-1">Internal Notes for Technicians</label>
+                <textarea
+                  {...registerAppEdit('notes')}
+                  placeholder="Log details like gate codes, system brand, attic location..."
+                  rows={3}
+                  className={`w-full p-2.5 bg-background border rounded-input text-xs resize-none ${
+                    errorsAppEdit.notes ? 'border-danger-custom' : 'border-border-custom'
+                  }`}
+                />
+                {errorsAppEdit.notes && (
+                  <p className="text-xs text-danger-custom font-semibold mt-1">{errorsAppEdit.notes.message}</p>
+                )}
+              </div>
+
+              <div className="flex justify-end space-x-2 pt-2 border-t border-border-custom">
+                <button type="button" onClick={closeEditAppointment} className="px-4 py-2 border border-border-custom hover:bg-background rounded-button text-xs font-semibold cursor-pointer">Cancel</button>
+                <button type="submit" disabled={isSubmittingAppEdit} className="px-4 py-2 bg-primary-custom text-white hover:bg-primary-hover rounded-button text-xs font-semibold cursor-pointer disabled:opacity-50 flex items-center space-x-1">
+                  {isSubmittingAppEdit && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  <span>Save Changes</span>
                 </button>
               </div>
             </form>

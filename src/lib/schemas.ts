@@ -34,8 +34,25 @@ export const reminderSchema = z.object({
   message: z.string().trim().min(2, 'Follow-up instruction must be at least 2 characters').max(500, 'Instruction must not exceed 500 characters'),
 })
 
+// Schema for updating existing appointment (date/time/type/notes)
+export const appointmentUpdateSchema = z.object({
+  date: z.string().min(1, 'Appointment date is required'),
+  time: z.string().min(1, 'Appointment time is required'),
+  type: z.enum(['Installation', 'Repair', 'Maintenance', 'Diagnostic'], {
+    message: 'Invalid visit type selection',
+  }),
+  notes: z.string().trim().max(1000, 'Internal notes must not exceed 1000 characters').optional().or(z.literal('')),
+})
+
+// Schema for editing existing note content
+export const noteUpdateSchema = z.object({
+  note: z.string().trim().min(2, 'Note must contain at least 2 characters').max(2000, 'Note must not exceed 2000 characters'),
+})
+
 // TypeScript types inferred directly from Zod schemas (Feature 11)
 export type ProfileInput = z.infer<typeof profileSchema>
 export type AppointmentInput = z.infer<typeof appointmentSchema>
+export type AppointmentUpdateInput = z.infer<typeof appointmentUpdateSchema>
 export type NoteInput = z.infer<typeof noteSchema>
+export type NoteUpdateInput = z.infer<typeof noteUpdateSchema>
 export type ReminderInput = z.infer<typeof reminderSchema>

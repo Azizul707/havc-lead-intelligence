@@ -17,6 +17,10 @@ export interface Database {
           phone: string | null
           timezone: string | null
           country: string | null
+          n8n_webhook_url: string | null
+          emergency_email_dispatch: boolean | null
+          auto_ai_ingestion: boolean | null
+          role: string | null
           created_at: string
           updated_at: string
         }
@@ -27,6 +31,10 @@ export interface Database {
           phone?: string | null
           timezone?: string | null
           country?: string | null
+          n8n_webhook_url?: string | null
+          emergency_email_dispatch?: boolean | null
+          auto_ai_ingestion?: boolean | null
+          role?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -37,6 +45,10 @@ export interface Database {
           phone?: string | null
           timezone?: string | null
           country?: string | null
+          n8n_webhook_url?: string | null
+          emergency_email_dispatch?: boolean | null
+          auto_ai_ingestion?: boolean | null
+          role?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -65,6 +77,10 @@ export interface Database {
           lead_score: number
           priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
           status: 'NEW' | 'CONTACTED' | 'SCHEDULED' | 'COMPLETED' | 'LOST'
+          source: string | null
+          lead_source: string | null
+          source_type: string | null
+          source_reference: string | null
         }
         Insert: {
           id?: string
@@ -89,6 +105,10 @@ export interface Database {
           lead_score: number
           priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
           status?: 'NEW' | 'CONTACTED' | 'SCHEDULED' | 'COMPLETED' | 'LOST'
+          source?: string | null
+          lead_source?: string | null
+          source_type?: string | null
+          source_reference?: string | null
         }
         Update: {
           id?: string
@@ -113,13 +133,17 @@ export interface Database {
           lead_score?: number
           priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
           status?: 'NEW' | 'CONTACTED' | 'SCHEDULED' | 'COMPLETED' | 'LOST'
+          source?: string | null
+          lead_source?: string | null
+          source_type?: string | null
+          source_reference?: string | null
         }
       }
       lead_events: {
         Row: {
           id: string
           lead_id: string
-          event_type: 'LEAD_CREATED' | 'AI_ANALYZED' | 'EMAIL_SENT' | 'SMS_SENT' | 'CUSTOMER_CONTACTED' | 'JOB_SCHEDULED' | 'JOB_COMPLETED' | 'STATUS_CHANGED' | 'NOTE_ADDED'
+          event_type: string
           description: string
           metadata: Json
           created_by: string | null
@@ -128,7 +152,7 @@ export interface Database {
         Insert: {
           id?: string
           lead_id: string
-          event_type: 'LEAD_CREATED' | 'AI_ANALYZED' | 'EMAIL_SENT' | 'SMS_SENT' | 'CUSTOMER_CONTACTED' | 'JOB_SCHEDULED' | 'JOB_COMPLETED' | 'STATUS_CHANGED' | 'NOTE_ADDED'
+          event_type: string
           description: string
           metadata?: Json
           created_by?: string | null
@@ -137,7 +161,7 @@ export interface Database {
         Update: {
           id?: string
           lead_id?: string
-          event_type?: 'LEAD_CREATED' | 'AI_ANALYZED' | 'EMAIL_SENT' | 'SMS_SENT' | 'CUSTOMER_CONTACTED' | 'JOB_SCHEDULED' | 'JOB_COMPLETED' | 'STATUS_CHANGED' | 'NOTE_ADDED'
+          event_type?: string
           description?: string
           metadata?: Json
           created_by?: string | null
@@ -166,8 +190,7 @@ export interface Database {
           note?: string
           created_at?: string
         }
-        // src/types/database.types.ts ফাইলের Tables অবজেক্টের ভেতরে এই ২টি ব্লক পেস্ট করুন:
-
+      }
       appointments: {
         Row: {
           id: string
@@ -175,7 +198,7 @@ export interface Database {
           appointment_date: string
           appointment_time: string
           appointment_type: string
-          status: 'Scheduled' | 'Confirmed' | 'Rescheduled' | 'Completed' | 'Cancelled'
+          status: string
           notes: string | null
           created_at: string
           updated_at: string
@@ -186,7 +209,7 @@ export interface Database {
           appointment_date: string
           appointment_time: string
           appointment_type: string
-          status: 'Scheduled' | 'Confirmed' | 'Rescheduled' | 'Completed' | 'Cancelled'
+          status: string
           notes?: string | null
           created_at?: string
           updated_at?: string
@@ -197,7 +220,7 @@ export interface Database {
           appointment_date?: string
           appointment_time?: string
           appointment_type?: string
-          status?: 'Scheduled' | 'Confirmed' | 'Rescheduled' | 'Completed' | 'Cancelled'
+          status?: string
           notes?: string | null
           created_at?: string
           updated_at?: string
@@ -209,9 +232,9 @@ export interface Database {
           lead_id: string
           reminder_date: string
           reminder_time: string
-          priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+          priority: string
           message: string
-          status: 'Pending' | 'Completed' | 'Overdue'
+          status: string
           created_at: string
           updated_at: string
         }
@@ -220,9 +243,9 @@ export interface Database {
           lead_id: string
           reminder_date: string
           reminder_time: string
-          priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+          priority: string
           message: string
-          status?: 'Pending' | 'Completed' | 'Overdue'
+          status?: string
           created_at?: string
           updated_at?: string
         }
@@ -231,14 +254,17 @@ export interface Database {
           lead_id?: string
           reminder_date?: string
           reminder_time?: string
-          priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+          priority?: string
           message?: string
-          status?: 'Pending' | 'Completed' | 'Overdue'
+          status?: string
           created_at?: string
           updated_at?: string
         }
       }
-      }
     }
+    Views: Record<string, never>
+    Functions: Record<string, never>
+    Enums: Record<string, never>
+    CompositeTypes: Record<string, never>
   }
 }

@@ -3,7 +3,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react'
 import dynamic from 'next/dynamic'
-import { 
+import {
   Clock3,
   Sparkles,
   Globe,
@@ -11,7 +11,13 @@ import {
   Activity,
   BellOff,
   Inbox,
-  Mail
+  Mail,
+  Eye,
+  UserCheck,
+  FileText,
+  CalendarCheck,
+  CheckCircle2,
+  ThumbsDown
 } from 'lucide-react'
 import { createClient } from '../../lib/supabase/client'
 import { formatRelativeTime } from '../../lib/utils/time'
@@ -272,10 +278,18 @@ export default function DashboardClient({
 
   const getEventIcon = (eventType: string) => {
     switch (eventType) {
-      case 'LEAD_CREATED': return <PlusCircle className="h-4 w-4 text-primary-custom" />
+      case 'LEAD_CREATED':
+      case 'LEAD_RECEIVED': return <PlusCircle className="h-4 w-4 text-primary-custom" />
+      case 'LEAD_VIEWED': return <Eye className="h-4 w-4 text-info-custom" />
       case 'AI_ANALYZED': return <Sparkles className="h-4 w-4 text-success-custom" />
+      case 'FIRST_RESPONSE': return <UserCheck className="h-4 w-4 text-success-custom" />
       case 'STATUS_CHANGED': return <Activity className="h-4 w-4 text-warning-custom" />
       case 'EMAIL_SENT': return <Mail className="h-4 w-4 text-info-custom" />
+      case 'NOTE_ADDED': return <FileText className="h-4 w-4 text-primary-custom" />
+      case 'APPOINTMENT_CREATED': return <CalendarCheck className="h-4 w-4 text-info-custom" />
+      case 'APPOINTMENT_COMPLETED':
+      case 'LEAD_COMPLETED': return <CheckCircle2 className="h-4 w-4 text-success-custom" />
+      case 'LEAD_LOST': return <ThumbsDown className="h-4 w-4 text-danger-custom" />
       default: return <Clock3 className="h-4 w-4 text-text-secondary" />
     }
   }

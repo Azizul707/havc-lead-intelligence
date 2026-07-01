@@ -47,13 +47,71 @@
     },
     {
       "parameters": {
+        "operation": "getAll",
+        "table": "hvac_leads",
+        "dataMode": "postProcess",
+        "options": {}
+      },
+      "id": "get-inserted-lead",
+      "name": "Get Inserted Lead",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [750, 300],
+      "credentials": {
+        "supabaseApi": "Supabase API"
+      }
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "lead_events",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "lead_id": "={{ $json.id }}",
+            "event_type": "LEAD_RECEIVED",
+            "description": "=Lead received from {{ $json.lead_source || $json.source || 'website_form' }}.",
+            "metadata": {
+              "lead_source": "={{ $json.lead_source || $json.source }}",
+              "source_type": "={{ $json.source_type }}",
+              "source_reference": "={{ $json.source_reference }}"
+            },
+            "created_at": "={{ $now.toISOString() }}",
+            "created_by": null
+          }
+        },
+        "dataMode": "postProcess",
+        "options": {}
+      },
+      "id": "create-lead-received-event",
+      "name": "Create LEAD_RECEIVED Event",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [850, 300],
+      "credentials": {
+        "supabaseApi": "Supabase API"
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Non-blocking: LEAD_RECEIVED event insertion failed\n// Log the error and continue the workflow\nconst inputData = $input.first().json;\nconst errorMsg = inputData.error || inputData.message || 'Unknown error';\nconsole.error('[LEAD EVENT] LEAD_RECEIVED event creation failed for lead:', inputData.lead_id || inputData.id, errorMsg);\n\n// Pass through to continue the workflow\nreturn inputData;"
+      },
+      "id": "event-error-handler",
+      "name": "Event Error Handler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [950, 500],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
         "jsCode": "// Log successful ingestion\nconst insertedLead = $input.first().json;\nconst log = {\n  workflow: 'Lead Ingestion',\n  action: 'lead_created',\n  lead_id: insertedLead.id,\n  customer: insertedLead.customer_name,\n  status: 'success',\n  timestamp: new Date().toISOString()\n};\nconsole.log('[LEAD INGESTION]', JSON.stringify(log));\nreturn { success: true, lead_id: insertedLead.id };"
       },
       "id": "log-success",
       "name": "Log Success",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [850, 300]
+      "position": [1050, 300]
     },
     {
       "parameters": {
@@ -63,7 +121,7 @@
       "name": "Error Handler",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [850, 500],
+      "position": [850, 600],
       "onError": "continueErrorOutput"
     },
     {
@@ -74,7 +132,7 @@
       "name": "Trigger AI Analysis",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1050, 300]
+      "position": [1250, 300]
     }
   ],
   "connections": {
@@ -85,8 +143,18 @@
       "main": [[{ "node": "Insert into Supabase", "type": "main", "index": 0 }]]
     },
     "Insert into Supabase": {
-      "main": [[{ "node": "Log Success", "type": "main", "index": 0 }]],
+      "main": [[{ "node": "Get Inserted Lead", "type": "main", "index": 0 }]],
       "error": [[{ "node": "Error Handler", "type": "main", "index": 0 }]]
+    },
+    "Get Inserted Lead": {
+      "main": [[{ "node": "Create LEAD_RECEIVED Event", "type": "main", "index": 0 }]]
+    },
+    "Create LEAD_RECEIVED Event": {
+      "main": [[{ "node": "Log Success", "type": "main", "index": 0 }]],
+      "error": [[{ "node": "Event Error Handler", "type": "main", "index": 0 }]]
+    },
+    "Event Error Handler": {
+      "main": [[{ "node": "Log Success", "type": "main", "index": 0 }]]
     },
     "Log Success": {
       "main": [[{ "node": "Trigger AI Analysis", "type": "main", "index": 0 }]]
@@ -107,12 +175,12 @@
     { "name": "core" },
     { "name": "production" }
   ],
-  "versionId": "1.1.0",
+  "versionId": "1.2.0",
   "metadata": {
-    "version": "1.1.0",
-    "description": "Receives HVAC leads via webhook, validates payload, inserts into Supabase, triggers AI analysis",
+    "version": "1.2.0",
+    "description": "Receives HVAC leads via webhook, validates payload, inserts into Supabase, creates LEAD_RECEIVED event, triggers AI analysis",
     "requiredEnv": ["SUPABASE_URL", "SUPABASE_SERVICE_KEY"],
     "triggerType": "webhook",
-    "lastUpdated": "2026-06-29"
+    "lastUpdated": "2026-07-01"
   }
 }

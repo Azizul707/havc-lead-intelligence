@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import {
   MapPin, Phone, Globe, Calendar, Sparkles, MoreHorizontal, Eye, UserCheck,
-  CalendarCheck, CheckCircle2, AlertCircle,
+  CalendarCheck, CheckCircle2, AlertCircle, AlertTriangle,
   Loader2, Search, SlidersHorizontal, ArrowUpDown, Trash2, CheckSquare,
   Square, ShieldAlert, FolderOpen
 } from 'lucide-react'
@@ -59,6 +59,19 @@ export default function CRMClient({ initialLeads }: CRMClientProps) {
   // Bulk Operations State
   const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([])
   const [bulkLoading, setBulkLoading] = useState(false)
+
+  // Toast state
+  const [toastMsg, setToastMsg] = useState<string | null>(null)
+  const [toastType, setToastType] = useState<'success' | 'error'>('success')
+
+  const triggerToast = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToastType(type)
+    setToastMsg(msg)
+    setTimeout(() => setToastMsg(null), 3000)
+  }
+
+  // Confirmation dialog state
+  const [confirmDeleteState, setConfirmDeleteState] = useState<{ visible: boolean; count: number }>({ visible: false, count: 0 })
 
   // Drawer
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null)
@@ -156,7 +169,7 @@ export default function CRMClient({ initialLeads }: CRMClientProps) {
     const res = await updateLeadStatusDirectly(leadId, newStatus, previousStatus)
     if (!res.success) {
       setLeadsList(backupList)
-      alert(`Status update failed: ${res.error}`)
+      triggerToast(`Status update failed: ${res.error}`, 'error')
     }
   }
 
@@ -178,12 +191,12 @@ export default function CRMClient({ initialLeads }: CRMClientProps) {
       }
 
       if (res && res.success) {
-        alert(`Action completed successfully.`)
+        triggerToast(`Action completed successfully.`)
       } else {
-        alert(`Failed: ${res?.error || 'Unknown error'}`)
+        triggerToast(`Failed: ${res?.error || 'Unknown error'}`, 'error')
       }
     } catch {
-      alert('An error occurred.')
+      triggerToast('An error occurred.', 'error')
     }
   }
 
@@ -199,24 +212,29 @@ export default function CRMClient({ initialLeads }: CRMClientProps) {
     setBulkLoading(true)
     const res = await bulkUpdateLeadStatus(selectedLeadIds, newStatus)
     if (res.success) {
-      alert(`Successfully updated ${selectedLeadIds.length} leads.`)
+      triggerToast(`Successfully updated ${selectedLeadIds.length} leads.`)
       setSelectedLeadIds([])
     } else {
-      alert(`Bulk update failed: ${res.error}`)
+      triggerToast(`Bulk update failed: ${res.error}`, 'error')
     }
     setBulkLoading(false)
   }
 
   const handleBulkDelete = async () => {
     if (selectedLeadIds.length === 0) return
-    if (!confirm(`Are you absolutely sure you want to delete ${selectedLeadIds.length} selected leads?`)) return
+    setConfirmDeleteState({ visible: true, count: selectedLeadIds.length })
+  }
+
+  const executeBulkDelete = async () => {
+    setConfirmDeleteState(prev => ({ ...prev, visible: false }))
+    if (selectedLeadIds.length === 0) return
     setBulkLoading(true)
     const res = await bulkDeleteLeads(selectedLeadIds)
     if (res.success) {
-      alert('Selected leads deleted successfully.')
+      triggerToast('Selected leads deleted successfully.')
       setSelectedLeadIds([])
     } else {
-      alert(`Bulk delete failed: ${res.error}`)
+      triggerToast(`Bulk delete failed: ${res.error}`, 'error')
     }
     setBulkLoading(false)
   }
@@ -245,7 +263,16 @@ export default function CRMClient({ initialLeads }: CRMClientProps) {
 
   return (
     <div className="space-y-6 relative">
-      
+
+      {/* Toast Notification */}
+      {toastMsg && (
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-button text-xs font-semibold shadow-2xl animate-fade-in ${
+          toastType === 'error' ? 'bg-danger-custom text-white' : 'bg-text-primary text-background'
+        }`}>
+          {toastMsg}
+        </div>
+      )}
+
       {/* Header and Counters */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-border-custom">
         <div>
@@ -593,6 +620,38 @@ export default function CRMClient({ initialLeads }: CRMClientProps) {
                 </button>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Dialog for Bulk Delete */}
+      {confirmDeleteState.visible && (
+        <div className="fixed inset-0 z-[60] overflow-hidden flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setConfirmDeleteState(prev => ({ ...prev, visible: false }))} />
+          <div className="relative bg-surface w-full max-w-sm rounded-card border border-border-custom p-6 shadow-2xl space-y-4 animate-fade-in text-sm text-text-primary">
+            <div className="flex items-center space-x-3 pb-3 border-b border-border-custom">
+              <div className="h-8 w-8 rounded-full bg-warning-custom/10 flex items-center justify-center text-warning-custom">
+                <AlertTriangle className="h-4 w-4" />
+              </div>
+              <h3 className="font-bold text-sm">Delete Leads</h3>
+            </div>
+            <p className="text-xs text-text-secondary leading-relaxed">
+              Are you sure you want to delete {confirmDeleteState.count} selected leads? This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-2 pt-2">
+              <button
+                onClick={() => setConfirmDeleteState(prev => ({ ...prev, visible: false }))}
+                className="px-4 py-2 border border-border-custom hover:bg-background rounded-button text-xs font-semibold cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={executeBulkDelete}
+                className="px-4 py-2 bg-danger-custom text-white hover:bg-danger-custom/80 rounded-button text-xs font-semibold cursor-pointer flex items-center space-x-1"
+              >
+                <span>Delete</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
