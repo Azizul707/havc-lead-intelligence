@@ -1,8 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react'
-import dynamic from 'next/dynamic'
+import React, { useState, useMemo, useEffect, useCallback, lazy, Suspense } from 'react'
 import {
   Clock3,
   Sparkles,
@@ -31,22 +30,12 @@ import {
 } from 'lucide-react'
 import { createClient } from '../../lib/supabase/client'
 import { formatRelativeTime } from '../../lib/utils/time'
-import LeadDetailsDrawer from './LeadDetailsDrawer'
+import { DashboardChartsLoading } from '../../components/ui/LazyLoading'
 import { bulkDeleteLeads } from '../../app/(authenticated)/dashboard/actions'
 
-const DashboardCharts = dynamic(() => import('./DashboardCharts'), {
-  ssr: false,
-  loading: () => (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 select-none">
-      <div className="lg:col-span-8 h-90 bg-surface border border-border-custom rounded-card animate-pulse flex items-center justify-center text-xs text-text-secondary font-semibold">
-        Loading historical lead trend...
-      </div>
-      <div className="lg:col-span-4 h-90 bg-surface border border-border-custom rounded-card animate-pulse flex items-center justify-center text-xs text-text-secondary font-semibold">
-        Loading priority breakdown...
-      </div>
-    </div>
-  )
-})
+// Lazy load heavy components
+const DashboardCharts = lazy(() => import('./DashboardCharts'))
+const LeadDetailsDrawer = lazy(() => import('./LeadDetailsDrawer'))
 
 interface Lead {
   id: string
@@ -540,11 +529,13 @@ export default function DashboardClient({
       </div>
 
       {/* Third Row: Recharts Trend area & Priority breakdown - Dynamically Imported (Feature 3) */}
-      <DashboardCharts 
-        leadTrendData={leadTrendData}
-        priorityChartData={priorityChartData}
-        filteredLeadsLength={(filteredLeads || []).length}
-      />
+      <Suspense fallback={<DashboardChartsLoading />}>
+        <DashboardCharts 
+          leadTrendData={leadTrendData}
+          priorityChartData={priorityChartData}
+          filteredLeadsLength={(filteredLeads || []).length}
+        />
+      </Suspense>
 
       {/* Fourth Row: Recent leads & Recent Activity Feed */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
@@ -675,15 +666,21 @@ export default function DashboardClient({
 
       {/* Reusable Lead Details Console Drawer */}
       {isPanelOpen && selectedLead && (
-        <LeadDetailsDrawer
-          selectedLead={selectedLead}
-          isOpen={isPanelOpen}
-          onClose={() => setIsPanelOpen(false)}
-          onStatusUpdated={(newStatus) => {
-            setLeadsList(prev => prev.map(l => l.id === selectedLead.id ? { ...l, status: newStatus } : l))
-            setSelectedLead({ ...selectedLead, status: newStatus })
-          }}
-        />
+        <Suspense fallback={<div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="bg-surface border border-border-custom rounded-card p-6 animate-pulse">
+            Loading lead details...
+          </div>
+        </div>}>
+          <LeadDetailsDrawer
+            selectedLead={selectedLead}
+            isOpen={isPanelOpen}
+            onClose={() => setIsPanelOpen(false)}
+            onStatusUpdated={(newStatus) => {
+              setLeadsList(prev => prev.map(l => l.id === selectedLead.id ? { ...l, status: newStatus } : l))
+              setSelectedLead({ ...selectedLead, status: newStatus })
+            }}
+          />
+        </Suspense>
       )}
 
       {/* Dashboard Bulk Operations Floating Toolbar */}
