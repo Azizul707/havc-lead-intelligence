@@ -19,9 +19,9 @@ const variantStyles: Record<BadgeVariant, string> = {
 }
 
 export function Badge({ children, variant = 'default', className = '', size = 'sm' }: BadgeProps) {
-  const sizeClass = size === 'sm' ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-xs'
+  const sizeClass = size === 'sm' ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-xs'
   return (
-    <span className={`inline-block rounded-full font-bold border ${sizeClass} ${variantStyles[variant]} ${className}`}>
+    <span className={`inline-flex items-center rounded-full font-semibold border leading-none ${sizeClass} ${variantStyles[variant]} ${className}`}>
       {children}
     </span>
   )

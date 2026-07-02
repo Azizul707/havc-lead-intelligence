@@ -16,13 +16,13 @@ export function Card({ children, className = '', padding = 'md' }: CardProps) {
 }
 
 export function CardHeader({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <div className={`pb-4 border-b border-border-custom mb-4 ${className}`}>{children}</div>
+  return <div className={`pb-4 border-b border-border-custom ${className}`}>{children}</div>
 }
 
 export function CardTitle({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <h2 className={`text-base font-bold tracking-tight text-text-primary ${className}`}>{children}</h2>
+  return <h3 className={`text-base font-semibold tracking-tight text-text-primary ${className}`}>{children}</h3>
 }
 
 export function CardDescription({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return <p className={`text-xs text-text-secondary mt-0.5 ${className}`}>{children}</p>
+  return <p className={`text-xs text-text-secondary/80 mt-0.5 ${className}`}>{children}</p>
 }

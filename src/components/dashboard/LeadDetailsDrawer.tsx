@@ -114,6 +114,7 @@ export default function LeadDetailsDrawer({
   const [showRemForm, setShowRemForm] = useState(false)
   const [toastMsg, setToastMsg] = useState<string | null>(null)
   const [toastType, setToastType] = useState<'success' | 'error'>('success')
+  const [toastExiting, setToastExiting] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
   // Confirmation dialog state
@@ -134,6 +135,33 @@ export default function LeadDetailsDrawer({
 
   // Exit Animation State
   const [isClosing, setIsClosing] = useState(false)
+  const [confirmClosing, setConfirmClosing] = useState(false)
+  const [appModalClosing, setAppModalClosing] = useState(false)
+  const [editModalClosing, setEditModalClosing] = useState(false)
+
+  // Track which sections are visible for staggered entry animation
+  const [visibleSections, setVisibleSections] = useState(false)
+  const staggerTimersRef = React.useRef<NodeJS.Timeout[]>([])
+
+  // Trigger section stagger on mount, clean up on unmount
+  useEffect(() => {
+    // Sections start invisible, become visible after the drawer opens (300ms) + small delays
+    const t = setTimeout(() => setVisibleSections(true), 300)
+    staggerTimersRef.current.push(t)
+    return () => {
+      staggerTimersRef.current.forEach(clearTimeout)
+      staggerTimersRef.current = []
+    }
+  }, [])
+
+  // Reset when isOpen / isClosing changes (drawer re-opens)
+  useEffect(() => {
+    if (!isClosing) return
+    setVisibleSections(false)
+    const t = setTimeout(() => setVisibleSections(true), 500)
+    staggerTimersRef.current.push(t)
+    return () => clearTimeout(t)
+  }, [isClosing])
 
   // Track LEAD_VIEWED insertion per lead to avoid duplicates
   const viewedLeadRef = React.useRef<string | null>(null)
@@ -259,13 +287,20 @@ export default function LeadDetailsDrawer({
     setIsClosing(true)
     setTimeout(() => {
       onClose()
-    }, 200)
+    }, 300)
   }
 
   const triggerToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToastType(type)
     setToastMsg(msg)
-    setTimeout(() => setToastMsg(null), 2500)
+    setToastExiting(false)
+    setTimeout(() => {
+      setToastExiting(true)
+      setTimeout(() => {
+        setToastMsg(null)
+        setToastExiting(false)
+      }, 200)
+    }, 2300)
   }
 
   const handleCopy = (text: string, label: string) => {
@@ -461,20 +496,20 @@ export default function LeadDetailsDrawer({
     <div className="fixed inset-0 z-50 overflow-hidden flex justify-end">
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 bg-black/20 backdrop-blur-xs transition-all duration-200 ${
-          isClosing ? 'opacity-0 backdrop-blur-none pointer-events-none' : 'opacity-100'
+        className={`fixed inset-0 bg-black/20 backdrop-blur-xs transition-all duration-[280ms] ${
+          isClosing ? 'opacity-0' : 'opacity-100'
         }`}
         onClick={onClose}
       />
 
       {/* Main Drawer Sheet */}
-      <div className={`relative w-full max-w-2xl bg-surface h-full shadow-2xl border-l border-border-custom flex flex-col transition-transform duration-200 ease-in-out ${
+      <div className={`relative w-full max-w-lg md:max-w-2xl bg-surface h-full shadow-2xl border-l border-border-custom flex flex-col transition-transform duration-300 ease-in-out ${
         isClosing ? 'translate-x-full' : 'translate-x-0'
-      } ${!isClosing ? 'animate-slide-in' : ''}`}>
+      }`}>
 
         {/* Floating Toast Notification */}
         {toastMsg && (
-          <div className={`absolute top-4 left-4 z-50 px-4 py-2.5 rounded-button text-xs font-semibold flex items-center space-x-2 shadow-2xl animate-fade-in ${
+          <div className={`absolute top-4 left-4 z-50 px-4 py-2.5 rounded-lg text-xs font-semibold flex items-center space-x-2 shadow-2xl ${toastExiting ? 'toast-exit' : 'toast-enter'} ${
             toastType === 'error' ? 'bg-danger-custom text-white' : 'bg-text-primary text-background'
           }`}>
             <span>{toastMsg}</span>
@@ -482,40 +517,40 @@ export default function LeadDetailsDrawer({
         )}
 
         {/* Header */}
-        <div className="px-6 py-5 border-b border-border-custom bg-background/50 flex flex-col space-y-4">
+        <div className="px-5 py-4 border-b border-border-custom bg-background/30 space-y-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Sparkles className="h-5 w-5 text-primary-custom" />
-              <span className="font-bold tracking-tight">Dispatcher Workspace Console</span>
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary-custom" />
+              <span className="text-sm font-semibold tracking-tight text-text-primary">Lead Workspace</span>
             </div>
-            <button onClick={handleCloseWithAnimation} className="p-1.5 rounded-button hover:bg-border-custom text-text-secondary hover:text-text-primary transition-colors cursor-pointer">
-              <X className="h-5 w-5" />
+            <button onClick={handleCloseWithAnimation} className="p-1.5 rounded-lg hover:bg-border-custom text-text-secondary hover:text-text-primary transition-colors cursor-pointer">
+              <X className="h-4 w-4" />
             </button>
           </div>
 
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-            <div className="space-y-1">
-              <div className="text-xl font-bold tracking-tight flex items-center space-x-2.5">
-                <span>{selectedLead.customer_name}</span>
-                <span className="text-xs font-bold text-primary-custom bg-primary-custom/10 px-1.5 py-0.5 rounded-md flex items-center space-x-0.5">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <h2 className="text-lg font-bold tracking-tight text-text-primary">{selectedLead.customer_name}</h2>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-semibold bg-primary-custom/8 text-primary-custom leading-none">
                   <Sparkles className="h-3 w-3" />
-                  <span>{selectedLead.lead_score} Score</span>
+                  {selectedLead.lead_score} Score
                 </span>
               </div>
-              <div className="flex flex-wrap items-center gap-2 text-xs text-text-secondary font-medium">
-                <span className="capitalize">{selectedLead.source} Ingestion</span>
-                <span>•</span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${getPriorityBadgeClass(selectedLead.priority)}`}>
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="text-text-secondary/80 capitalize">{selectedLead.source}</span>
+                <span className="text-text-muted">·</span>
+                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border leading-none ${getPriorityBadgeClass(selectedLead.priority)}`}>
                   {selectedLead.priority}
                 </span>
-                <span>•</span>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary-custom/10 text-primary-custom">
+                <span className="text-text-muted">·</span>
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-primary-custom/8 text-primary-custom leading-none">
                   {selectedLead.status}
                 </span>
                 {activeApp && (
                   <>
-                    <span>•</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-success-custom/10 text-success-custom border border-success-custom/15">
+                    <span className="text-text-muted">·</span>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-success-custom/8 text-success-custom leading-none">
                       Appt: {activeApp.appointment_date}
                     </span>
                   </>
@@ -524,83 +559,83 @@ export default function LeadDetailsDrawer({
             </div>
 
             {/* Quick Contact Actions Header */}
-            <div className="flex items-center gap-1.5">
-              <button onClick={() => window.open(`tel:${selectedLead.phone}`)} className="p-2 border border-border-custom rounded-button bg-surface hover:bg-background text-text-secondary hover:text-text-primary cursor-pointer transition-colors" title="Dial Phone">
-                <Phone className="h-4 w-4" />
+            <div className="flex items-center gap-1">
+              <button onClick={() => window.open(`tel:${selectedLead.phone}`)} className="p-2 border border-border-custom/60 rounded-lg bg-surface hover:bg-background text-text-secondary hover:text-text-primary transition-colors cursor-pointer" title="Dial Phone">
+                <Phone className="h-3.5 w-3.5" />
               </button>
-              <button onClick={() => handleCopy(selectedLead.phone, 'Phone number')} className="p-2 border border-border-custom rounded-button bg-surface hover:bg-background text-text-secondary hover:text-text-primary cursor-pointer transition-colors" title="Copy Phone">
-                <Copy className="h-4 w-4" />
+              <button onClick={() => handleCopy(selectedLead.phone, 'Phone number')} className="p-2 border border-border-custom/60 rounded-lg bg-surface hover:bg-background text-text-secondary hover:text-text-primary transition-colors cursor-pointer" title="Copy Phone">
+                <Copy className="h-3.5 w-3.5" />
               </button>
               {selectedLead.email && (
-                <button onClick={() => handleCopy(selectedLead.email!, 'Email address')} className="p-2 border border-border-custom rounded-button bg-surface hover:bg-background text-text-secondary hover:text-text-primary cursor-pointer transition-colors" title="Copy Email">
-                  <Mail className="h-4 w-4" />
+                <button onClick={() => handleCopy(selectedLead.email!, 'Email address')} className="p-2 border border-border-custom/60 rounded-lg bg-surface hover:bg-background text-text-secondary hover:text-text-primary transition-colors cursor-pointer" title="Copy Email">
+                  <Mail className="h-3.5 w-3.5" />
                 </button>
               )}
-              <button onClick={() => handleMaps(selectedLead.city)} className="p-2 border border-border-custom rounded-button bg-surface hover:bg-background text-text-secondary hover:text-text-primary cursor-pointer transition-colors" title="Open Maps">
-                <Map className="h-4 w-4" />
+              <button onClick={() => handleMaps(selectedLead.city)} className="p-2 border border-border-custom/60 rounded-lg bg-surface hover:bg-background text-text-secondary hover:text-text-primary transition-colors cursor-pointer" title="Open Maps">
+                <Map className="h-3.5 w-3.5" />
               </button>
             </div>
           </div>
         </div>
 
         {/* Scrollable Two-Column Layout */}
-        <div className="flex-1 overflow-y-auto p-6 md:p-8 grid grid-cols-1 md:grid-cols-12 gap-8">
+        <div className="flex-1 overflow-y-auto p-5 grid grid-cols-1 md:grid-cols-12 gap-6 scrollbar-thin">
 
           {/* LEFT COLUMN: Notes & Reminders & Timeline */}
-          <div className="md:col-span-7 space-y-6">
+          <div className="md:col-span-7 space-y-5">
 
             {/* Note Logging Widget */}
             <div className="space-y-3">
-              <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider flex items-center space-x-1.5">
-                <FileText className="h-4 w-4 text-primary-custom" />
-                <span>Dispatcher Dispatch Notes</span>
-              </h4>
-              <form onSubmit={handleSubmitNote(onAddNoteSubmit)} className="space-y-2 bg-background p-4 rounded-card border border-border-custom">
+              <div className="flex items-center gap-1.5">
+                <FileText className="h-3.5 w-3.5 text-primary-custom" />
+                <h4 className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">Dispatch Notes</h4>
+              </div>
+              <form onSubmit={handleSubmitNote(onAddNoteSubmit)} className="space-y-2 bg-background border border-border-custom rounded-card p-4">
                 <textarea
                   {...registerNote('note')}
-                  placeholder="Log any dispatch notes, customer callbacks or details..."
+                  placeholder="Log dispatch notes, customer callbacks or details..."
                   rows={2}
-                  className={`w-full p-2.5 bg-surface border rounded-input text-xs text-text-primary leading-relaxed resize-none ${
+                  className={`w-full p-2.5 bg-surface border rounded-lg text-xs text-text-primary leading-relaxed resize-none outline-none focus:ring-2 focus:ring-primary-custom/15 ${
                     errorsNote.note ? 'border-danger-custom' : 'border-border-custom'
                   }`}
                 />
                 {errorsNote.note && (
-                  <p className="text-xs text-danger-custom font-semibold">{errorsNote.note.message}</p>
+                  <p className="text-xs text-danger-custom font-medium">{errorsNote.note.message}</p>
                 )}
                 <button
                   type="submit"
                   disabled={isSubmittingNote}
-                  className="px-3.5 py-1.5 bg-primary-custom text-white hover:bg-primary-hover text-xs font-semibold rounded-button cursor-pointer disabled:opacity-50 flex items-center space-x-1"
+                  className="px-3 py-1.5 bg-primary-custom text-white hover:bg-primary-hover text-xs font-medium rounded-lg cursor-pointer disabled:opacity-50 flex items-center gap-1.5 transition-colors"
                 >
                   {isSubmittingNote && <Loader2 className="h-3 w-3 animate-spin" />}
-                  <span>Save Dispatch Note</span>
+                  <span>Save Note</span>
                 </button>
               </form>
 
               {/* Note List */}
-              <div className="space-y-2.5 max-h-45 overflow-y-auto pr-1">
+              <div className="space-y-2 max-h-44 overflow-y-auto scrollbar-thin">
                 {notes.map(note => (
-                  <div key={note.id} className="bg-background border border-border-custom p-3.5 rounded-card flex items-start justify-between gap-3 hover:border-primary-custom/25 transition-colors">
+                  <div key={note.id} className="bg-background border border-border-custom p-3.5 rounded-card flex items-start justify-between gap-3 hover:border-primary-custom/20 transition-colors">
                     {editingNoteId === note.id ? (
                       <div className="flex-1 space-y-2">
                         <textarea
                           value={editingNoteText}
                           onChange={(e) => setEditingNoteText(e.target.value)}
                           rows={2}
-                          className="w-full p-2 bg-surface border border-border-custom rounded-input text-xs text-text-primary leading-relaxed resize-none"
+                          className="w-full p-2 bg-surface border border-border-custom rounded-lg text-xs text-text-primary leading-relaxed resize-none outline-none focus:ring-2 focus:ring-primary-custom/15"
                         />
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center gap-2">
                           <button
                             onClick={saveEditNote}
                             disabled={noteEditLoading}
-                            className="px-3 py-1 bg-primary-custom text-white hover:bg-primary-hover text-xs font-semibold rounded-button cursor-pointer disabled:opacity-50 flex items-center space-x-1"
+                            className="px-3 py-1 bg-primary-custom text-white hover:bg-primary-hover text-xs font-medium rounded-lg cursor-pointer disabled:opacity-50 flex items-center gap-1 transition-colors"
                           >
                             {noteEditLoading && <Loader2 className="h-3 w-3 animate-spin" />}
                             <span>Save</span>
                           </button>
                           <button
                             onClick={cancelEditNote}
-                            className="px-3 py-1 border border-border-custom hover:bg-surface text-xs font-semibold rounded-button cursor-pointer"
+                            className="px-3 py-1 border border-border-custom hover:bg-surface text-xs font-medium rounded-lg cursor-pointer transition-colors"
                           >
                             Cancel
                           </button>
@@ -608,13 +643,13 @@ export default function LeadDetailsDrawer({
                       </div>
                     ) : (
                       <>
-                        <div className="space-y-1 flex-1">
-                          <p className="text-xs font-semibold leading-relaxed text-text-primary">{note.note}</p>
-                          <span className="text-[10px] text-text-muted font-medium">{formatRelativeTime(note.created_at)} • Dispatcher logged</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium text-text-primary leading-relaxed">{note.note}</p>
+                          <span className="text-[11px] text-text-muted/80 mt-1 block">{formatRelativeTime(note.created_at)}</span>
                         </div>
-                        <div className="flex items-center space-x-1 shrink-0">
+                        <div className="flex items-center gap-1 shrink-0">
                           <button onClick={() => startEditNote(note)} className="text-text-muted hover:text-primary-custom transition-colors p-1 cursor-pointer" title="Edit note">
-                            <Pencil className="h-3.5 w-3.5" />
+                            <Pencil className="h-3 w-3" />
                           </button>
                           <button
                             onClick={() => setConfirmDialog({
@@ -625,7 +660,7 @@ export default function LeadDetailsDrawer({
                             })}
                             className="text-text-muted hover:text-danger-custom transition-colors p-1 cursor-pointer"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Trash2 className="h-3 w-3" />
                           </button>
                         </div>
                       </>
@@ -636,39 +671,39 @@ export default function LeadDetailsDrawer({
             </div>
 
             {/* Follow-up Reminders Widget */}
-            <div className="space-y-3 pt-2">
+            <div className="space-y-3 pt-1">
               <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider flex items-center space-x-1.5">
-                  <BellRing className="h-4 w-4 text-warning-custom" />
-                  <span>Dispatcher Follow-ups</span>
-                </h4>
+                <div className="flex items-center gap-1.5">
+                  <BellRing className="h-3.5 w-3.5 text-warning-custom" />
+                  <h4 className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">Follow-up Reminders</h4>
+                </div>
                 <button
                   onClick={() => setShowRemForm(!showRemForm)}
-                  className="text-xs text-primary-custom hover:underline font-bold flex items-center space-x-1 cursor-pointer"
+                  className="text-[11px] text-primary-custom hover:text-primary-hover font-medium flex items-center gap-1 cursor-pointer transition-colors"
                 >
-                  <Clock3 className="h-3.5 w-3.5" />
+                  <Clock3 className="h-3 w-3" />
                   <span>Add Reminder</span>
                 </button>
               </div>
 
               {showRemForm && (
-                <form onSubmit={handleSubmitRem(onAddReminderSubmit)} className="bg-background border border-border-custom p-4 rounded-card space-y-4 animate-fade-in">
+                <form onSubmit={handleSubmitRem(onAddReminderSubmit)} className="bg-background border border-border-custom rounded-card p-4 space-y-3 animate-fade-in">
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-bold text-text-secondary mb-1">Follow-up Date</label>
-                      <input {...registerRem('date')} type="date" className={`w-full px-2.5 py-1.5 bg-surface border rounded-input text-xs ${errorsRem.date ? 'border-danger-custom' : 'border-border-custom'}`} />
-                      {errorsRem.date && <p className="text-[10px] text-danger-custom font-semibold mt-0.5">{errorsRem.date.message}</p>}
+                      <label className="block text-[11px] font-medium text-text-secondary/80 mb-1">Date</label>
+                      <input {...registerRem('date')} type="date" className={`w-full px-2.5 py-1.5 bg-surface border rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary-custom/15 ${errorsRem.date ? 'border-danger-custom' : 'border-border-custom'}`} />
+                      {errorsRem.date && <p className="text-[10px] text-danger-custom font-medium mt-0.5">{errorsRem.date.message}</p>}
                     </div>
                     <div>
-                      <label className="block text-[11px] font-bold text-text-secondary mb-1">Callback Time</label>
-                      <input {...registerRem('time')} type="time" className={`w-full px-2.5 py-1.5 bg-surface border rounded-input text-xs ${errorsRem.time ? 'border-danger-custom' : 'border-border-custom'}`} />
-                      {errorsRem.time && <p className="text-[10px] text-danger-custom font-semibold mt-0.5">{errorsRem.time.message}</p>}
+                      <label className="block text-[11px] font-medium text-text-secondary/80 mb-1">Time</label>
+                      <input {...registerRem('time')} type="time" className={`w-full px-2.5 py-1.5 bg-surface border rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary-custom/15 ${errorsRem.time ? 'border-danger-custom' : 'border-border-custom'}`} />
+                      {errorsRem.time && <p className="text-[10px] text-danger-custom font-medium mt-0.5">{errorsRem.time.message}</p>}
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-3 items-center">
-                    <div className="col-span-1">
-                      <label className="block text-[11px] font-bold text-text-secondary mb-1">Priority</label>
-                      <select {...registerRem('priority')} className="w-full px-2.5 py-1.5 bg-surface border border-border-custom rounded-input text-xs cursor-pointer">
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-medium text-text-secondary/80 mb-1">Priority</label>
+                      <select {...registerRem('priority')} className="w-full px-2.5 py-1.5 bg-surface border border-border-custom rounded-lg text-xs outline-none cursor-pointer">
                         <option value="LOW">Low</option>
                         <option value="MEDIUM">Medium</option>
                         <option value="HIGH">High</option>
@@ -676,19 +711,19 @@ export default function LeadDetailsDrawer({
                       </select>
                     </div>
                     <div className="col-span-2">
-                      <label className="block text-[11px] font-bold text-text-secondary mb-1">Instruction Message</label>
+                      <label className="block text-[11px] font-medium text-text-secondary/80 mb-1">Message</label>
                       <input
                         {...registerRem('message')}
                         type="text"
-                        placeholder="e.g. Call back customer for quote confirmation"
-                        className={`w-full px-2.5 py-1.5 bg-surface border rounded-input text-xs ${errorsRem.message ? 'border-danger-custom' : 'border-border-custom'}`}
+                        placeholder="e.g. Call back customer for quote"
+                        className={`w-full px-2.5 py-1.5 bg-surface border rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary-custom/15 ${errorsRem.message ? 'border-danger-custom' : 'border-border-custom'}`}
                       />
-                      {errorsRem.message && <p className="text-[10px] text-danger-custom font-semibold mt-0.5">{errorsRem.message.message}</p>}
+                      {errorsRem.message && <p className="text-[10px] text-danger-custom font-medium mt-0.5">{errorsRem.message.message}</p>}
                     </div>
                   </div>
-                  <div className="flex justify-end space-x-2">
-                    <button type="button" onClick={() => setShowRemForm(false)} className="px-3 py-1.5 border border-border-custom hover:bg-surface text-xs font-semibold rounded-button cursor-pointer">Cancel</button>
-                    <button type="submit" disabled={isSubmittingRem} className="px-3 py-1.5 bg-primary-custom text-white hover:bg-primary-hover text-xs font-semibold rounded-button cursor-pointer disabled:opacity-50 flex items-center space-x-1">
+                  <div className="flex justify-end gap-2 pt-1">
+                    <button type="button" onClick={() => setShowRemForm(false)} className="px-3 py-1.5 border border-border-custom hover:bg-surface text-xs font-medium rounded-lg cursor-pointer transition-colors">Cancel</button>
+                    <button type="submit" disabled={isSubmittingRem} className="px-3 py-1.5 bg-primary-custom text-white hover:bg-primary-hover text-xs font-medium rounded-lg cursor-pointer disabled:opacity-50 flex items-center gap-1 transition-colors">
                       {isSubmittingRem && <Loader2 className="h-3 w-3 animate-spin" />}
                       <span>Set Reminder</span>
                     </button>
@@ -696,48 +731,62 @@ export default function LeadDetailsDrawer({
                 </form>
               )}
 
-              {/* Reminders list */}
+              {/* Reminders List */}
               <div className="space-y-2">
-                {reminders.map(rem => (
-                  <div key={rem.id} className="bg-background border border-border-custom p-3.5 rounded-card flex items-center justify-between gap-3">
-                    <div className="space-y-1 min-w-0 flex-1">
-                      <p className={`text-xs font-semibold ${rem.status === 'Completed' ? 'line-through text-text-muted' : 'text-text-primary'}`}>{rem.message}</p>
-                      <div className="flex items-center space-x-2 text-[10px] text-text-secondary font-medium">
-                        <span className={`px-1.5 py-0.5 rounded-full text-[8px] font-bold border ${getPriorityBadgeClass(rem.priority)}`}>{rem.priority}</span>
-                        <span>Due: {rem.reminder_date} at {rem.reminder_time}</span>
-                        {rem.status === 'Completed' && <span className="text-success-custom">● Completed</span>}
+                {reminders.map(rem => {
+                  const isHighPriority = rem.priority === 'HIGH' || rem.priority === 'CRITICAL'
+                  return (
+                    <div key={rem.id} className={`bg-background border rounded-card p-3.5 flex items-center justify-between gap-3 ${isHighPriority && rem.status === 'Pending' ? 'border-warning-custom/20 border-l-2 border-l-warning-custom' : 'border-border-custom'}`}>
+                      <div className="min-w-0 flex-1">
+                        <p className={`text-xs font-medium ${rem.status === 'Completed' ? 'line-through text-text-muted' : 'text-text-primary'}`}>{rem.message}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium border leading-none ${getPriorityBadgeClass(rem.priority)}`}>{rem.priority}</span>
+                          <span className="text-[11px] text-text-secondary/70">Due: {rem.reminder_date} at {rem.reminder_time}</span>
+                          {rem.status === 'Completed' && <span className="text-[11px] text-success-custom font-medium">Completed</span>}
+                        </div>
                       </div>
+                      {rem.status === 'Pending' && (
+                        <button onClick={() => handleCompleteReminder(rem.id)} className="p-1.5 border border-border-custom hover:border-success-custom text-text-secondary hover:text-success-custom rounded-lg transition-colors cursor-pointer shrink-0" title="Mark Completed">
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </div>
-                    {rem.status === 'Pending' && (
-                      <button onClick={() => handleCompleteReminder(rem.id)} className="p-1 border border-border-custom hover:border-success-custom text-text-secondary hover:text-success-custom rounded-button transition-colors cursor-pointer" title="Mark Completed">
-                        <CheckCircle2 className="h-4 w-4" />
-                      </button>
-                    )}
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
 
             {/* Audit Lead Timeline */}
-            <div className="space-y-3 pt-2">
-              <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Audit Lead Timeline</h4>
-              <div className="bg-background border border-border-custom p-5 rounded-card space-y-4">
+            <div className="space-y-3 pt-1">
+              <h4 className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">Lead Timeline</h4>
+              <div className="bg-background border border-border-custom rounded-card p-4">
                 {timeline.length > 0 ? (
-                  <div className="relative border-l border-border-custom pl-4 ml-2 space-y-4">
-                    {timeline.map((evt) => (
-                      <div key={evt.id} className="relative">
-                        <span className="absolute -left-6.25 top-0.5 bg-background border border-border-custom p-1 rounded-full shrink-0 flex items-center justify-center">
-                          {getEventIcon(evt.event_type)}
-                        </span>
-                        <div className="pl-2">
-                          <p className="text-xs font-semibold text-text-primary leading-relaxed">{evt.description}</p>
-                          <span className="text-[10px] text-text-muted mt-0.5 block">{formatRelativeTime(evt.created_at)}</span>
+                  <div className="relative ml-3 space-y-5">
+                    {timeline.map((evt, idx) => {
+                      const isLast = idx === timeline.length - 1
+                      return (
+                        <div key={evt.id} className="relative flex gap-4">
+                          {/* Connector line */}
+                          {!isLast && (
+                            <div className="absolute left-[11px] top-[22px] bottom-[-16px] w-px bg-border-custom/50" />
+                          )}
+                          {/* Dot */}
+                          <div className="relative z-10 shrink-0">
+                            <div className="h-[22px] w-[22px] rounded-full bg-background border border-border-custom/60 flex items-center justify-center">
+                              {getEventIcon(evt.event_type)}
+                            </div>
+                          </div>
+                          {/* Content */}
+                          <div className="min-w-0 flex-1 pt-0.5">
+                            <p className="text-xs font-medium text-text-primary leading-relaxed">{evt.description}</p>
+                            <span className="text-[11px] text-text-muted/80 mt-0.5 block">{formatRelativeTime(evt.created_at)}</span>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 ) : (
-                  <span className="text-xs text-text-secondary block text-center py-4">No logged history found</span>
+                  <p className="text-xs text-text-secondary/60 text-center py-4">No timeline events found</p>
                 )}
               </div>
             </div>
@@ -745,93 +794,121 @@ export default function LeadDetailsDrawer({
           </div>
 
           {/* RIGHT COLUMN: Metrics, Routing, Appointments */}
-          <div className="md:col-span-5 space-y-6">
+          <div className="md:col-span-5 space-y-5">
 
             {/* Appointment Widget */}
             <div className="space-y-3">
-              <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Appointment Reservation</h4>
+              <h4 className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">Appointment</h4>
 
-              <div className="bg-background border border-border-custom p-4 rounded-card space-y-3 text-sm">
+              <div className="bg-background border border-border-custom rounded-card p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-text-secondary">Appt Status</span>
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${selectedLead.status === 'SCHEDULED' ? 'bg-success-custom/10 text-success-custom font-bold' : 'bg-background text-text-secondary border border-border-custom'}`}>
-                    {selectedLead.status === 'SCHEDULED' ? 'Scheduled Active' : 'Unscheduled'}
+                  <span className="text-[11px] font-medium text-text-secondary/80">Status</span>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border leading-none ${selectedLead.status === 'SCHEDULED' ? 'bg-success-custom/10 text-success-custom border-success-custom/20' : 'bg-background text-text-secondary border-border-custom'}`}>
+                    {selectedLead.status === 'SCHEDULED' ? 'Scheduled' : 'Unscheduled'}
                   </span>
                 </div>
 
                 {activeApp && (
-                  <div className="p-3 bg-surface rounded-button border border-border-custom space-y-1.5 text-xs text-text-secondary">
-                    <div className="font-bold text-text-primary">Visit Schedule Detail:</div>
-                    <div>Date: <span className="font-semibold">{activeApp.appointment_date}</span></div>
-                    <div>Time: <span className="font-semibold">{activeApp.appointment_time}</span></div>
-                    <div>Type: <span className="font-semibold">{activeApp.appointment_type}</span></div>
-                    {activeApp.notes && <div className="truncate">Notes: {activeApp.notes}</div>}
-                    <button
-                      onClick={() => openEditAppointment(activeApp)}
-                      className="mt-2 w-full flex items-center justify-center space-x-1.5 px-3 py-1.5 bg-background hover:bg-border-custom border border-border-custom rounded-button text-xs font-semibold text-text-primary transition-colors cursor-pointer"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                      <span>Edit Appointment</span>
-                    </button>
+                  <div className="p-3 bg-surface border border-border-custom rounded-lg space-y-1.5 text-xs">
+                    <p className="text-xs font-semibold text-text-primary mb-1.5">Visit Details</p>
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                      <div>
+                        <span className="text-[11px] font-medium text-text-secondary/70">Date</span>
+                        <p className="text-xs font-medium text-text-primary">{activeApp.appointment_date}</p>
+                      </div>
+                      <div>
+                        <span className="text-[11px] font-medium text-text-secondary/70">Time</span>
+                        <p className="text-xs font-medium text-text-primary">{activeApp.appointment_time}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-[11px] font-medium text-text-secondary/70">Type</span>
+                        <p className="text-xs font-medium text-text-primary">{activeApp.appointment_type}</p>
+                      </div>
+                      {activeApp.notes && (
+                        <div className="col-span-2">
+                          <span className="text-[11px] font-medium text-text-secondary/70">Notes</span>
+                          <p className="text-xs text-text-secondary/80 truncate">{activeApp.notes}</p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={() => openEditAppointment(activeApp)}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-background hover:bg-border-custom border border-border-custom rounded-lg text-[11px] font-medium text-text-primary transition-colors cursor-pointer"
+                      >
+                        <Pencil className="h-3 w-3" />
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => setShowAppModal(true)}
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-primary-custom/8 text-primary-custom hover:bg-primary-custom/15 rounded-lg text-[11px] font-medium transition-colors cursor-pointer"
+                      >
+                        <Calendar className="h-3 w-3" />
+                        New
+                      </button>
+                    </div>
                   </div>
                 )}
 
-                <button
-                  onClick={() => setShowAppModal(true)}
-                  className="w-full flex items-center justify-center space-x-2 px-3 py-2.5 bg-primary-custom hover:bg-primary-hover rounded-button text-xs font-bold text-white transition-colors cursor-pointer"
-                >
-                  <Calendar className="h-4 w-4" />
-                  <span>Schedule Appointment Visit</span>
-                </button>
+                {!activeApp && (
+                  <button
+                    onClick={() => setShowAppModal(true)}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2.5 bg-primary-custom hover:bg-primary-hover rounded-lg text-xs font-medium text-white transition-colors cursor-pointer"
+                  >
+                    <Calendar className="h-3.5 w-3.5" />
+                    Schedule Appointment
+                  </button>
+                )}
               </div>
             </div>
 
-            {/* AI Analysis */}
-            <div className="space-y-4">
-              <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Intelligence Metrics</h4>
-              <div className="bg-background border border-border-custom p-4 rounded-card flex items-center justify-between">
-                <div className="space-y-1">
-                  <div className="text-xs font-medium text-text-secondary">Lead Score</div>
-                  <div className="text-3xl font-bold tracking-tight text-primary-custom">{selectedLead.lead_score}/100</div>
+            {/* Intelligence Metrics */}
+            <div className="space-y-3">
+              <h4 className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">Lead Score</h4>
+              <div className="bg-background border border-border-custom rounded-card p-4 flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-medium text-text-secondary/80 mb-1">AI Score</div>
+                  <div className="text-2xl font-bold tracking-tight text-primary-custom">{selectedLead.lead_score}<span className="text-text-muted text-base font-medium">/100</span></div>
                 </div>
-                <span className="text-xs font-semibold bg-primary-custom/10 text-primary-custom px-2.5 py-1 rounded-full">
-                  {selectedLead.lead_quality} QUALITY
+                <span className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold bg-primary-custom/8 text-primary-custom">
+                  {selectedLead.lead_quality}
                 </span>
               </div>
             </div>
 
-            <div className="space-y-4">
-              <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Recommended Routing</h4>
-              <div className="bg-background border border-border-custom p-4 rounded-card space-y-2">
-                <div className="flex items-center space-x-1.5 text-xs text-text-secondary font-semibold">
-                  <Clock3 className="h-4 w-4" />
-                  <span>RECOMMENDED RESPONSE</span>
+            {/* Recommended Routing */}
+            <div className="space-y-3">
+              <h4 className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">Routing</h4>
+              <div className="bg-background border border-border-custom rounded-card p-4 space-y-3">
+                <div>
+                  <div className="flex items-center gap-1.5 text-xs text-text-secondary/80 font-medium mb-1">
+                    <Clock3 className="h-3.5 w-3.5" />
+                    Recommended Response
+                  </div>
+                  <p className="text-sm font-semibold text-text-primary">{selectedLead.recommended_response_time}</p>
                 </div>
-                <p className="text-sm font-bold text-text-primary">{selectedLead.recommended_response_time}</p>
-              </div>
-
-              <div className="bg-background border border-border-custom p-4 rounded-card space-y-2">
-                <div className="flex items-center space-x-1.5 text-xs text-text-secondary font-semibold">
-                  <ArrowRight className="h-4 w-4" />
-                  <span>NEXT LOGICAL ACTION</span>
+                <div>
+                  <div className="flex items-center gap-1.5 text-xs text-text-secondary/80 font-medium mb-1">
+                    <ArrowRight className="h-3.5 w-3.5" />
+                    Next Action
+                  </div>
+                  <p className="text-sm font-medium text-text-primary leading-relaxed">{selectedLead.recommended_action}</p>
                 </div>
-                <p className="text-sm font-medium text-text-primary leading-relaxed">{selectedLead.recommended_action}</p>
               </div>
             </div>
 
             {/* Quick CRM Action Buttons */}
-            <div className="space-y-4">
-              <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Quick CRM Actions</h4>
+            <div className="space-y-3">
+              <h4 className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">Actions</h4>
 
-              <div className="grid grid-cols-1 gap-2.5">
-                {/* Call button (always visible unless terminal) */}
+              <div className="space-y-2">
                 {!isTerminal && (
                   <button
                     onClick={() => handleAction('call')}
                     disabled={actionLoading !== null}
-                    className="w-full flex items-center justify-between px-4 py-2.5 bg-background hover:bg-border-custom border border-border-custom rounded-button text-sm font-semibold transition-colors text-text-primary disabled:opacity-50 cursor-pointer"
+                    className="w-full flex items-center justify-between px-4 py-2.5 bg-background hover:bg-border-custom border border-border-custom rounded-lg text-sm font-medium transition-colors text-text-primary disabled:opacity-50 cursor-pointer"
                   >
-                    <span className="flex items-center space-x-2.5">
+                    <span className="flex items-center gap-2.5">
                       <Phone className="h-4 w-4 text-primary-custom" />
                       <span>Call Customer</span>
                     </span>
@@ -839,14 +916,13 @@ export default function LeadDetailsDrawer({
                   </button>
                 )}
 
-                {/* Mark Contacted (only when NEW) */}
                 {selectedLead.status === 'NEW' && (
                   <button
                     onClick={() => handleAction('contact')}
                     disabled={actionLoading !== null}
-                    className="w-full flex items-center justify-between px-4 py-2.5 bg-background hover:bg-border-custom border border-border-custom rounded-button text-sm font-semibold transition-colors text-text-primary disabled:opacity-50 cursor-pointer"
+                    className="w-full flex items-center justify-between px-4 py-2.5 bg-background hover:bg-border-custom border border-border-custom rounded-lg text-sm font-medium transition-colors text-text-primary disabled:opacity-50 cursor-pointer"
                   >
-                    <span className="flex items-center space-x-2.5">
+                    <span className="flex items-center gap-2.5">
                       <UserCheck className="h-4 w-4 text-warning-custom" />
                       <span>Mark Contacted</span>
                     </span>
@@ -854,7 +930,6 @@ export default function LeadDetailsDrawer({
                   </button>
                 )}
 
-                {/* Mark Completed (when not already terminal) */}
                 {selectedLead.status !== 'COMPLETED' && selectedLead.status !== 'LOST' && (
                   <button
                     onClick={() => setConfirmDialog({
@@ -863,9 +938,9 @@ export default function LeadDetailsDrawer({
                       message: 'Are you sure you want to mark this lead as Completed? Any active appointments will also be completed.'
                     })}
                     disabled={actionLoading !== null}
-                    className="w-full flex items-center justify-between px-4 py-2.5 bg-background hover:bg-border-custom border border-border-custom rounded-button text-sm font-semibold transition-colors text-text-primary disabled:opacity-50 cursor-pointer"
+                    className="w-full flex items-center justify-between px-4 py-2.5 bg-background hover:bg-border-custom border border-border-custom rounded-lg text-sm font-medium transition-colors text-text-primary disabled:opacity-50 cursor-pointer"
                   >
-                    <span className="flex items-center space-x-2.5">
+                    <span className="flex items-center gap-2.5">
                       <CheckCircle2 className="h-4 w-4 text-success-custom" />
                       <span>Mark Completed</span>
                     </span>
@@ -873,7 +948,6 @@ export default function LeadDetailsDrawer({
                   </button>
                 )}
 
-                {/* Mark Lost (when not terminal) */}
                 {selectedLead.status !== 'COMPLETED' && selectedLead.status !== 'LOST' && (
                   <button
                     onClick={() => setConfirmDialog({
@@ -882,9 +956,9 @@ export default function LeadDetailsDrawer({
                       message: 'Are you sure you want to mark this lead as Lost? This action will close the lead.'
                     })}
                     disabled={actionLoading !== null}
-                    className="w-full flex items-center justify-between px-4 py-2.5 bg-background hover:bg-border-custom border border-border-custom rounded-button text-sm font-semibold transition-colors text-text-primary disabled:opacity-50 cursor-pointer"
+                    className="w-full flex items-center justify-between px-4 py-2.5 bg-background hover:bg-border-custom border border-border-custom rounded-lg text-sm font-medium transition-colors text-text-primary disabled:opacity-50 cursor-pointer"
                   >
-                    <span className="flex items-center space-x-2.5">
+                    <span className="flex items-center gap-2.5">
                       <XCircle className="h-4 w-4 text-danger-custom" />
                       <span>Mark Lost</span>
                     </span>
@@ -896,20 +970,20 @@ export default function LeadDetailsDrawer({
 
             {/* Internal Notes Section (disabled - for future use) */}
             <div className="space-y-3">
-              <h4 className="text-xs font-bold text-text-secondary uppercase tracking-wider">Internal Notes</h4>
-              <div className="bg-background border border-border-custom p-4 rounded-card space-y-3">
+              <h4 className="text-[11px] font-semibold text-text-secondary uppercase tracking-wider">Internal Notes</h4>
+              <div className="bg-background border border-border-custom rounded-card p-4 space-y-3">
                 <textarea
                   placeholder="Type internal notes for dispatch or technicians here..."
                   disabled
                   rows={3}
-                  className="w-full p-2.5 bg-surface border border-border-custom rounded-input text-xs text-text-muted leading-relaxed resize-none focus:outline-none cursor-not-allowed opacity-80"
+                  className="w-full p-2.5 bg-surface border border-border-custom rounded-lg text-xs text-text-muted leading-relaxed resize-none cursor-not-allowed"
                 />
                 <button
                   disabled
-                  className="w-full flex items-center justify-center space-x-2 px-3 py-2 bg-background border border-border-custom rounded-button text-xs font-semibold text-text-muted cursor-not-allowed opacity-75"
+                  className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-background border border-border-custom rounded-lg text-xs font-medium text-text-muted cursor-not-allowed"
                 >
                   <FileText className="h-3.5 w-3.5" />
-                  <span>Save Internal Dispatch Note</span>
+                  Save Note
                 </button>
               </div>
             </div>
@@ -918,13 +992,13 @@ export default function LeadDetailsDrawer({
 
         </div>
 
-        {/* Footer Actions */}
-        <div className="p-6 border-t border-border-custom bg-background/50 flex items-center justify-between">
-          <div className="text-xs text-text-secondary font-medium">
-            Lead ID: <span className="font-semibold">{selectedLead.id.substring(0, 8)}...</span>
+        {/* Footer */}
+        <div className="px-5 py-4 border-t border-border-custom bg-background/30 flex items-center justify-between">
+          <div className="text-xs text-text-secondary/70">
+            Lead ID: <span className="font-medium text-text-secondary">{selectedLead.id.substring(0, 8)}...</span>
           </div>
-          <button onClick={handleCloseWithAnimation} className="px-4 py-2 border border-border-custom hover:bg-border-custom text-sm font-semibold rounded-button transition-colors cursor-pointer">
-            Close Drawer
+          <button onClick={handleCloseWithAnimation} className="px-4 py-2 border border-border-custom hover:bg-background rounded-lg text-xs font-medium transition-colors cursor-pointer">
+            Close
           </button>
         </div>
 
@@ -934,30 +1008,32 @@ export default function LeadDetailsDrawer({
           CONFIRMATION DIALOG
           ========================================== */}
       {confirmDialog && (
-        <div className="fixed inset-0 z-[60] overflow-hidden flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setConfirmDialog(null)} />
-          <div className="relative bg-surface w-full max-w-sm rounded-card border border-border-custom p-6 shadow-2xl space-y-4 animate-fade-in text-sm text-text-primary">
-            <div className="flex items-center space-x-3 pb-3 border-b border-border-custom">
-              <div className="h-8 w-8 rounded-full bg-warning-custom/10 flex items-center justify-center text-warning-custom">
-                <AlertTriangle className="h-4 w-4" />
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setConfirmDialog(null)} />
+          <div className="relative bg-surface w-full max-w-sm rounded-card border border-border-custom p-5 shadow-2xl animate-fade-in">
+            <div className="flex items-start gap-3 pb-4 border-b border-border-custom mb-4">
+              <div className="h-8 w-8 rounded-lg bg-warning-custom/10 flex items-center justify-center shrink-0">
+                <AlertTriangle className="h-4 w-4 text-warning-custom" />
               </div>
-              <h3 className="font-bold text-sm">{confirmDialog.title}</h3>
+              <div>
+                <h3 className="text-sm font-semibold text-text-primary">{confirmDialog.title}</h3>
+                <p className="text-xs text-text-secondary/70 mt-0.5">{confirmDialog.message}</p>
+              </div>
             </div>
-            <p className="text-xs text-text-secondary leading-relaxed">{confirmDialog.message}</p>
-            <div className="flex justify-end space-x-2 pt-2">
+            <div className="flex justify-end gap-2">
               <button
                 onClick={() => setConfirmDialog(null)}
-                className="px-4 py-2 border border-border-custom hover:bg-background rounded-button text-xs font-semibold cursor-pointer"
+                className="px-4 py-2 border border-border-custom hover:bg-background rounded-lg text-xs font-medium cursor-pointer transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={executeConfirmedAction}
                 disabled={actionLoading !== null}
-                className="px-4 py-2 bg-primary-custom text-white hover:bg-primary-hover rounded-button text-xs font-semibold cursor-pointer disabled:opacity-50 flex items-center space-x-1"
+                className="px-4 py-2 bg-primary-custom text-white hover:bg-primary-hover rounded-lg text-xs font-medium cursor-pointer disabled:opacity-50 flex items-center gap-1.5 transition-colors"
               >
-                {actionLoading !== null && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                <span>Confirm</span>
+                {actionLoading !== null && <Loader2 className="h-3 w-3 animate-spin" />}
+                Confirm
               </button>
             </div>
           </div>
@@ -968,83 +1044,75 @@ export default function LeadDetailsDrawer({
           SCHEDULE APPOINTMENT DIALOG (Create)
           ========================================== */}
       {showAppModal && (
-        <div className="fixed inset-0 z-50 overflow-hidden flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setShowAppModal(false)} />
-          <div className="relative bg-surface w-full max-w-md rounded-card border border-border-custom p-6 shadow-2xl space-y-4 animate-fade-in text-sm text-text-primary">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setShowAppModal(false)} />
+          <div className="relative bg-surface w-full max-w-md rounded-card border border-border-custom p-5 shadow-2xl animate-fade-in">
 
-            <div className="flex items-center justify-between pb-3 border-b border-border-custom">
-              <h3 className="font-bold text-base">Schedule Site Visit Appointment</h3>
-              <button onClick={() => setShowAppModal(false)} className="p-1 rounded-button hover:bg-background cursor-pointer">
-                <X className="h-5 w-5" />
+            <div className="flex items-center justify-between pb-4 border-b border-border-custom mb-4">
+              <h3 className="text-sm font-semibold text-text-primary">Schedule Appointment</h3>
+              <button onClick={() => setShowAppModal(false)} className="p-1 rounded-lg hover:bg-background cursor-pointer transition-colors">
+                <X className="h-4 w-4" />
               </button>
             </div>
 
             <form onSubmit={handleSubmitApp(onScheduleAppSubmit)} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-text-secondary mb-1">Appointment Date</label>
+                  <label className="block text-xs font-medium text-text-secondary/80 mb-1">Date</label>
                   <input
                     {...registerApp('date')}
                     type="date"
-                    className={`w-full px-3 py-2 bg-background border rounded-input text-xs ${
+                    className={`w-full px-3 py-2 bg-background border rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary-custom/15 ${
                       errorsApp.date ? 'border-danger-custom' : 'border-border-custom'
                     }`}
                   />
-                  {errorsApp.date && (
-                    <p className="text-xs text-danger-custom font-semibold mt-1">{errorsApp.date.message}</p>
-                  )}
+                  {errorsApp.date && <p className="text-xs text-danger-custom font-medium mt-1">{errorsApp.date.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-text-secondary mb-1">Visit Time</label>
+                  <label className="block text-xs font-medium text-text-secondary/80 mb-1">Time</label>
                   <input
                     {...registerApp('time')}
                     type="time"
-                    className={`w-full px-3 py-2 bg-background border rounded-input text-xs ${
+                    className={`w-full px-3 py-2 bg-background border rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary-custom/15 ${
                       errorsApp.time ? 'border-danger-custom' : 'border-border-custom'
                     }`}
                   />
-                  {errorsApp.time && (
-                    <p className="text-xs text-danger-custom font-semibold mt-1">{errorsApp.time.message}</p>
-                  )}
+                  {errorsApp.time && <p className="text-xs text-danger-custom font-medium mt-1">{errorsApp.time.message}</p>}
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-text-secondary mb-1">Visit Type</label>
+                <label className="block text-xs font-medium text-text-secondary/80 mb-1">Type</label>
                 <select
                   {...registerApp('type')}
-                  className="w-full px-3 py-2 bg-background border border-border-custom rounded-input text-xs cursor-pointer"
+                  className="w-full px-3 py-2 bg-background border border-border-custom rounded-lg text-xs outline-none cursor-pointer focus:ring-2 focus:ring-primary-custom/15"
                 >
-                  <option value="Installation">Equipment Installation</option>
-                  <option value="Repair">Emergency System Repair</option>
-                  <option value="Maintenance">Annual Maintenance Tune-Up</option>
-                  <option value="Diagnostic">Initial AI Ingested Diagnosis</option>
+                  <option value="Installation">Installation</option>
+                  <option value="Repair">Repair</option>
+                  <option value="Maintenance">Maintenance</option>
+                  <option value="Diagnostic">Diagnostic</option>
                 </select>
-                {errorsApp.type && (
-                  <p className="text-xs text-danger-custom font-semibold mt-1">{errorsApp.type.message}</p>
-                )}
+                {errorsApp.type && <p className="text-xs text-danger-custom font-medium mt-1">{errorsApp.type.message}</p>}
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-text-secondary mb-1">Internal Notes for Technicians</label>
+                <label className="block text-xs font-medium text-text-secondary/80 mb-1">Notes for Technicians</label>
                 <textarea
                   {...registerApp('notes')}
-                  placeholder="Log details like gate codes, system brand, attic location..."
+                  placeholder="Gate codes, system location, access notes..."
                   rows={3}
-                  className={`w-full p-2.5 bg-background border rounded-input text-xs resize-none ${
+                  className={`w-full p-2.5 bg-background border rounded-lg text-xs resize-none outline-none focus:ring-2 focus:ring-primary-custom/15 ${
                     errorsApp.notes ? 'border-danger-custom' : 'border-border-custom'
                   }`}
                 />
-                {errorsApp.notes && (
-                  <p className="text-xs text-danger-custom font-semibold mt-1">{errorsApp.notes.message}</p>
-                )}
+                {errorsApp.notes && <p className="text-xs text-danger-custom font-medium mt-1">{errorsApp.notes.message}</p>}
               </div>
 
-              <div className="flex justify-end space-x-2 pt-2 border-t border-border-custom">
-                <button type="button" onClick={() => setShowAppModal(false)} className="px-4 py-2 border border-border-custom hover:bg-background rounded-button text-xs font-semibold cursor-pointer">Cancel</button>
-                <button type="submit" disabled={isSubmittingApp} className="px-4 py-2 bg-primary-custom text-white hover:bg-primary-hover rounded-button text-xs font-semibold cursor-pointer disabled:opacity-50 flex items-center space-x-1">
-                  {isSubmittingApp && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  <span>Book Appointment</span>
+              <div className="flex justify-end gap-2 pt-3 border-t border-border-custom">
+                <button type="button" onClick={() => setShowAppModal(false)} className="px-4 py-2 border border-border-custom hover:bg-background rounded-lg text-xs font-medium cursor-pointer transition-colors">Cancel</button>
+                <button type="submit" disabled={isSubmittingApp} className="px-4 py-2 bg-primary-custom text-white hover:bg-primary-hover rounded-lg text-xs font-medium cursor-pointer disabled:opacity-50 flex items-center gap-1.5 transition-colors">
+                  {isSubmittingApp && <Loader2 className="h-3 w-3 animate-spin" />}
+                  Book Appointment
                 </button>
               </div>
             </form>
@@ -1057,83 +1125,75 @@ export default function LeadDetailsDrawer({
           EDIT APPOINTMENT DIALOG
           ========================================== */}
       {editAppointment && (
-        <div className="fixed inset-0 z-50 overflow-hidden flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-xs" onClick={closeEditAppointment} />
-          <div className="relative bg-surface w-full max-w-md rounded-card border border-border-custom p-6 shadow-2xl space-y-4 animate-fade-in text-sm text-text-primary">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={closeEditAppointment} />
+          <div className="relative bg-surface w-full max-w-md rounded-card border border-border-custom p-5 shadow-2xl animate-fade-in">
 
-            <div className="flex items-center justify-between pb-3 border-b border-border-custom">
-              <h3 className="font-bold text-base">Edit Appointment</h3>
-              <button onClick={closeEditAppointment} className="p-1 rounded-button hover:bg-background cursor-pointer">
-                <X className="h-5 w-5" />
+            <div className="flex items-center justify-between pb-4 border-b border-border-custom mb-4">
+              <h3 className="text-sm font-semibold text-text-primary">Edit Appointment</h3>
+              <button onClick={closeEditAppointment} className="p-1 rounded-lg hover:bg-background cursor-pointer transition-colors">
+                <X className="h-4 w-4" />
               </button>
             </div>
 
             <form onSubmit={handleSubmitAppEdit(onEditAppSubmit)} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-text-secondary mb-1">Appointment Date</label>
+                  <label className="block text-xs font-medium text-text-secondary/80 mb-1">Date</label>
                   <input
                     {...registerAppEdit('date')}
                     type="date"
-                    className={`w-full px-3 py-2 bg-background border rounded-input text-xs ${
+                    className={`w-full px-3 py-2 bg-background border rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary-custom/15 ${
                       errorsAppEdit.date ? 'border-danger-custom' : 'border-border-custom'
                     }`}
                   />
-                  {errorsAppEdit.date && (
-                    <p className="text-xs text-danger-custom font-semibold mt-1">{errorsAppEdit.date.message}</p>
-                  )}
+                  {errorsAppEdit.date && <p className="text-xs text-danger-custom font-medium mt-1">{errorsAppEdit.date.message}</p>}
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-text-secondary mb-1">Visit Time</label>
+                  <label className="block text-xs font-medium text-text-secondary/80 mb-1">Time</label>
                   <input
                     {...registerAppEdit('time')}
                     type="time"
-                    className={`w-full px-3 py-2 bg-background border rounded-input text-xs ${
+                    className={`w-full px-3 py-2 bg-background border rounded-lg text-xs outline-none focus:ring-2 focus:ring-primary-custom/15 ${
                       errorsAppEdit.time ? 'border-danger-custom' : 'border-border-custom'
                     }`}
                   />
-                  {errorsAppEdit.time && (
-                    <p className="text-xs text-danger-custom font-semibold mt-1">{errorsAppEdit.time.message}</p>
-                  )}
+                  {errorsAppEdit.time && <p className="text-xs text-danger-custom font-medium mt-1">{errorsAppEdit.time.message}</p>}
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-text-secondary mb-1">Visit Type</label>
+                <label className="block text-xs font-medium text-text-secondary/80 mb-1">Type</label>
                 <select
                   {...registerAppEdit('type')}
-                  className="w-full px-3 py-2 bg-background border border-border-custom rounded-input text-xs cursor-pointer"
+                  className="w-full px-3 py-2 bg-background border border-border-custom rounded-lg text-xs outline-none cursor-pointer focus:ring-2 focus:ring-primary-custom/15"
                 >
-                  <option value="Installation">Equipment Installation</option>
-                  <option value="Repair">Emergency System Repair</option>
-                  <option value="Maintenance">Annual Maintenance Tune-Up</option>
-                  <option value="Diagnostic">Initial AI Ingested Diagnosis</option>
+                  <option value="Installation">Installation</option>
+                  <option value="Repair">Repair</option>
+                  <option value="Maintenance">Maintenance</option>
+                  <option value="Diagnostic">Diagnostic</option>
                 </select>
-                {errorsAppEdit.type && (
-                  <p className="text-xs text-danger-custom font-semibold mt-1">{errorsAppEdit.type.message}</p>
-                )}
+                {errorsAppEdit.type && <p className="text-xs text-danger-custom font-medium mt-1">{errorsAppEdit.type.message}</p>}
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-text-secondary mb-1">Internal Notes for Technicians</label>
+                <label className="block text-xs font-medium text-text-secondary/80 mb-1">Notes for Technicians</label>
                 <textarea
                   {...registerAppEdit('notes')}
-                  placeholder="Log details like gate codes, system brand, attic location..."
+                  placeholder="Gate codes, system location, access notes..."
                   rows={3}
-                  className={`w-full p-2.5 bg-background border rounded-input text-xs resize-none ${
+                  className={`w-full p-2.5 bg-background border rounded-lg text-xs resize-none outline-none focus:ring-2 focus:ring-primary-custom/15 ${
                     errorsAppEdit.notes ? 'border-danger-custom' : 'border-border-custom'
                   }`}
                 />
-                {errorsAppEdit.notes && (
-                  <p className="text-xs text-danger-custom font-semibold mt-1">{errorsAppEdit.notes.message}</p>
-                )}
+                {errorsAppEdit.notes && <p className="text-xs text-danger-custom font-medium mt-1">{errorsAppEdit.notes.message}</p>}
               </div>
 
-              <div className="flex justify-end space-x-2 pt-2 border-t border-border-custom">
-                <button type="button" onClick={closeEditAppointment} className="px-4 py-2 border border-border-custom hover:bg-background rounded-button text-xs font-semibold cursor-pointer">Cancel</button>
-                <button type="submit" disabled={isSubmittingAppEdit} className="px-4 py-2 bg-primary-custom text-white hover:bg-primary-hover rounded-button text-xs font-semibold cursor-pointer disabled:opacity-50 flex items-center space-x-1">
-                  {isSubmittingAppEdit && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  <span>Save Changes</span>
+              <div className="flex justify-end gap-2 pt-3 border-t border-border-custom">
+                <button type="button" onClick={closeEditAppointment} className="px-4 py-2 border border-border-custom hover:bg-background rounded-lg text-xs font-medium cursor-pointer transition-colors">Cancel</button>
+                <button type="submit" disabled={isSubmittingAppEdit} className="px-4 py-2 bg-primary-custom text-white hover:bg-primary-hover rounded-lg text-xs font-medium cursor-pointer disabled:opacity-50 flex items-center gap-1.5 transition-colors">
+                  {isSubmittingAppEdit && <Loader2 className="h-3 w-3 animate-spin" />}
+                  Save Changes
                 </button>
               </div>
             </form>

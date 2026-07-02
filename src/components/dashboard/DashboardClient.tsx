@@ -23,7 +23,11 @@ import {
   Trash2,
   ShieldAlert,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  Calendar,
+  Bell,
+  AlertCircle,
+  Wrench
 } from 'lucide-react'
 import { createClient } from '../../lib/supabase/client'
 import { formatRelativeTime } from '../../lib/utils/time'
@@ -385,30 +389,30 @@ export default function DashboardClient({
   }
 
   return (
-    <div className="space-y-8 relative">
+    <div className="space-y-5 relative">
       
       {/* Filters Row */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-b-border-custom">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-text-primary">HVAC Lead Command Center</h1>
-          <p className="text-sm text-text-secondary mt-1">Real-time artificial intelligence qualification and routing engine.</p>
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-5 pb-5 border-b border-border-custom">
+        <div className="space-y-0.5">
+          <h1 className="text-xl font-bold tracking-tight text-text-primary">Dashboard</h1>
+          <p className="text-sm text-text-secondary/80">Real-time lead intelligence and routing overview.</p>
         </div>
-        
-        <div className="flex flex-wrap items-center gap-3">
-          <select value={timeFilter} onChange={(e) => setTimeFilter(e.target.value as any)} className="px-3 py-2 bg-surface border border-border-custom rounded-input text-sm font-medium cursor-pointer">
+
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">
+          <select value={timeFilter} onChange={(e) => setTimeFilter(e.target.value as any)} className="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-2 bg-surface border border-border-custom rounded-lg text-xs font-medium text-text-primary cursor-pointer hover:border-text-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-custom/30">
             <option value="all">All Time</option>
-            <option value="today">Today Only</option>
+            <option value="today">Today</option>
             <option value="7days">Last 7 Days</option>
             <option value="30days">Last 30 Days</option>
           </select>
-          <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} className="px-3 py-2 bg-surface border border-border-custom rounded-input text-sm font-medium cursor-pointer">
+          <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} className="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-2 bg-surface border border-border-custom rounded-lg text-xs font-medium text-text-primary cursor-pointer hover:border-text-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-custom/30">
             <option value="all">All Priorities</option>
             <option value="LOW">Low</option>
             <option value="MEDIUM">Medium</option>
             <option value="HIGH">High</option>
             <option value="CRITICAL">Critical</option>
           </select>
-          <select value={cityFilter} onChange={(e) => setCityFilter(e.target.value)} className="px-3 py-2 bg-surface border border-border-custom rounded-input text-sm font-medium cursor-pointer">
+          <select value={cityFilter} onChange={(e) => setCityFilter(e.target.value)} className="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-3 py-2 bg-surface border border-border-custom rounded-lg text-xs font-medium text-text-primary cursor-pointer hover:border-text-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-custom/30">
             <option value="all">All Cities</option>
             {uniqueCities.map(city => <option key={city} value={city}>{city}</option>)}
           </select>
@@ -416,82 +420,118 @@ export default function DashboardClient({
       </div>
 
       {/* KPI operational cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-surface p-6 rounded-card border border-border-custom shadow-sm flex flex-col justify-between h-36 hover:shadow-md transition-shadow">
-          <span className="text-sm font-medium text-text-secondary">Today&apos;s Appointments</span>
-          <h3 className="text-2xl font-bold tracking-tight text-primary-custom">{metrics.todayApps} Visits</h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="bg-surface p-5 rounded-card border border-border-custom shadow-sm hover:shadow-md transition-shadow duration-200">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-medium text-text-secondary/80 tracking-wide uppercase">Appointments Today</span>
+            <div className="h-8 w-8 rounded-lg bg-primary-custom/8 flex items-center justify-center">
+              <Calendar className="h-4 w-4 text-primary-custom" />
+            </div>
+          </div>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-2xl font-bold tracking-tight text-text-primary">{metrics.todayApps}</span>
+            <span className="text-xs font-medium text-text-secondary/70">visits</span>
+          </div>
         </div>
-        <div className="bg-surface p-6 rounded-card border border-border-custom shadow-sm flex flex-col justify-between h-36 hover:shadow-md transition-shadow">
-          <span className="text-sm font-medium text-text-secondary">Pending Follow-ups</span>
-          <h3 className="text-2xl font-bold tracking-tight text-warning-custom">{metrics.pendingReminders} Reminders</h3>
+        <div className="bg-surface p-5 rounded-card border border-border-custom shadow-sm hover:shadow-md transition-shadow duration-200">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-medium text-text-secondary/80 tracking-wide uppercase">Pending Follow-ups</span>
+            <div className="h-8 w-8 rounded-lg bg-warning-custom/8 flex items-center justify-center">
+              <Bell className="h-4 w-4 text-warning-custom" />
+            </div>
+          </div>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-2xl font-bold tracking-tight text-text-primary">{metrics.pendingReminders}</span>
+            <span className="text-xs font-medium text-text-secondary/70">reminders</span>
+          </div>
         </div>
-        <div className="bg-surface p-6 rounded-card border border-border-custom shadow-sm flex flex-col justify-between h-36 hover:shadow-md transition-shadow">
-          <span className="text-sm font-medium text-text-secondary">Overdue Follow-ups</span>
-          <h3 className={`text-2xl font-bold tracking-tight ${metrics.overdueReminders > 0 ? 'text-danger-custom animate-pulse' : 'text-text-primary'}`}>
-            {metrics.overdueReminders} Alert
-          </h3>
+        <div className="bg-surface p-5 rounded-card border border-border-custom shadow-sm hover:shadow-md transition-shadow duration-200">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-medium text-text-secondary/80 tracking-wide uppercase">Overdue Alerts</span>
+            <div className={`h-8 w-8 rounded-lg flex items-center justify-center ${metrics.overdueReminders > 0 ? 'bg-danger-custom/8' : 'bg-text-secondary/8'}`}>
+              <AlertCircle className={`h-4 w-4 ${metrics.overdueReminders > 0 ? 'text-danger-custom' : 'text-text-muted'}`} />
+            </div>
+          </div>
+          <div className="flex items-baseline gap-1.5">
+            <span className={`text-2xl font-bold tracking-tight ${metrics.overdueReminders > 0 ? 'text-danger-custom' : 'text-text-primary'}`}>
+              {metrics.overdueReminders}
+            </span>
+            <span className="text-xs font-medium text-text-secondary/70">overdue</span>
+          </div>
         </div>
-        <div className="bg-surface p-6 rounded-card border border-border-custom shadow-sm flex flex-col justify-between h-36 hover:shadow-md transition-shadow">
-          <span className="text-sm font-medium text-text-secondary">Scheduled Tech Jobs</span>
-          <h3 className="text-2xl font-bold tracking-tight text-success-custom">{metrics.scheduledJobs} Active</h3>
+        <div className="bg-surface p-5 rounded-card border border-border-custom shadow-sm hover:shadow-md transition-shadow duration-200">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-medium text-text-secondary/80 tracking-wide uppercase">Scheduled Jobs</span>
+            <div className="h-8 w-8 rounded-lg bg-success-custom/8 flex items-center justify-center">
+              <Wrench className="h-4 w-4 text-success-custom" />
+            </div>
+          </div>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-2xl font-bold tracking-tight text-text-primary">{metrics.scheduledJobs}</span>
+            <span className="text-xs font-medium text-text-secondary/70">active</span>
+          </div>
         </div>
       </div>
 
       {/* Second Row: Today's Schedule & Upcoming Reminders */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
         {/* Today's Schedule Widget */}
-        <div className="lg:col-span-6 bg-surface rounded-card border border-border-custom shadow-sm p-6 flex flex-col">
-          <div className="pb-4 border-b border-border-custom mb-4">
-            <h2 className="text-base font-bold tracking-tight text-text-primary">Today&apos;s Appointments Schedule</h2>
-            <p className="text-xs text-text-secondary mt-0.5">Technician site visits scheduled for today.</p>
+        <div className="lg:col-span-6 bg-surface rounded-card border border-border-custom shadow-sm card-hover flex flex-col">
+          <div className="px-5 py-4 border-b border-border-custom">
+            <h2 className="text-sm font-semibold tracking-tight text-text-primary">Today&apos;s Schedule</h2>
+            <p className="text-xs text-text-secondary/70 mt-0.5">Technician site visits planned for today.</p>
           </div>
-          <div className="flex-1 overflow-y-auto max-h-62.5 space-y-3 pr-1">
+          <div className="flex-1 p-5 space-y-2.5 max-h-[260px] overflow-y-auto scrollbar-thin">
             {todayAppointments.length > 0 ? (
               todayAppointments.map((appt: any) => (
-                <div key={appt.id} onClick={() => handleRowClick(leadsList.find(l => l.id === appt.lead_id)!)} className="flex items-center justify-between p-3 bg-background border border-border-custom rounded-card hover:border-primary-custom cursor-pointer transition-colors">
-                  <div className="space-y-0.5">
-                    <p className="text-xs font-semibold text-text-primary">{appt.customer_name}</p>
-                    <p className="text-[10px] text-text-secondary">{appt.service_type} • {appt.appointment_type}</p>
+                <div key={appt.id} onClick={() => handleRowClick(leadsList.find(l => l.id === appt.lead_id)!)} className="flex items-center justify-between p-3 bg-background border border-border-custom rounded-lg hover:border-primary-custom/40 hover:bg-background/80 cursor-pointer transition-all duration-150">
+                  <div className="min-w-0 flex-1 pr-3">
+                    <p className="text-xs font-medium text-text-primary truncate">{appt.customer_name}</p>
+                    <p className="text-[11px] text-text-secondary/70 mt-0.5 truncate">{appt.service_type}</p>
                   </div>
-                  <div className="flex items-center space-x-2 text-xs">
-                    <span className="text-text-secondary font-medium">{appt.appointment_time}</span>
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${getPriorityBadgeClass(appt.priority)}`}>{appt.priority}</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[11px] font-medium text-text-secondary/80">{appt.appointment_time}</span>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border leading-none ${getPriorityBadgeClass(appt.priority)}`}>{appt.priority}</span>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="h-full flex items-center justify-center text-xs text-text-secondary py-12">
-                <Inbox className="h-5 w-5 mr-1" />
-                <span>No appointments booked for today</span>
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <Calendar className="h-8 w-8 text-text-muted/50 mb-2" />
+                <p className="text-xs font-medium text-text-secondary/70">No appointments scheduled</p>
+                <p className="text-[11px] text-text-muted/60 mt-0.5">New appointments will appear here.</p>
               </div>
             )}
           </div>
         </div>
 
         {/* Upcoming Reminders Widget */}
-        <div className="lg:col-span-6 bg-surface rounded-card border border-border-custom shadow-sm p-6 flex flex-col">
-          <div className="pb-4 border-b border-border-custom mb-4">
-            <h2 className="text-base font-bold tracking-tight text-text-primary">Upcoming Follow-up Reminders</h2>
-            <p className="text-xs text-text-secondary mt-0.5">Chronologically sorted customer callback alerts.</p>
+        <div className="lg:col-span-6 bg-surface rounded-card border border-border-custom shadow-sm card-hover flex flex-col">
+          <div className="px-5 py-4 border-b border-border-custom">
+            <h2 className="text-sm font-semibold tracking-tight text-text-primary">Follow-up Reminders</h2>
+            <p className="text-xs text-text-secondary/70 mt-0.5">Chronologically sorted customer callback alerts.</p>
           </div>
-          <div className="flex-1 overflow-y-auto max-h-62.5 space-y-3 pr-1">
+          <div className="flex-1 p-5 space-y-2.5 max-h-[260px] overflow-y-auto scrollbar-thin">
             {upcomingReminders.length > 0 ? (
               upcomingReminders.map((rem: any) => (
-                <div key={rem.id} className={`flex items-center justify-between p-3 border rounded-card transition-colors ${rem.isOverdue ? 'bg-danger-custom/2 border-danger-custom/30' : 'bg-background border-border-custom'}`}>
-                  <div className="space-y-0.5 flex-1 min-w-0 pr-3">
-                    <p className="text-xs font-semibold text-text-primary truncate">{rem.message}</p>
-                    <p className="text-[10px] text-text-secondary font-medium">Due: {rem.reminder_date} at {rem.reminder_time}</p>
+                <div key={rem.id} className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${rem.isOverdue ? 'bg-danger-custom/[0.03] border-danger-custom/20' : 'bg-background border-border-custom'}`}>
+                  <div className="min-w-0 flex-1 pr-3">
+                    <p className="text-xs font-medium text-text-primary truncate">{rem.message}</p>
+                    <p className="text-[11px] text-text-secondary/70 mt-0.5">
+                      Due: <span className="font-medium text-text-secondary">{rem.reminder_date}</span> at <span className="font-medium text-text-secondary">{rem.reminder_time}</span>
+                    </p>
                   </div>
                   {rem.isOverdue && (
-                    <span className="text-[10px] font-bold text-danger-custom bg-danger-custom/10 px-2 py-0.5 rounded-full animate-pulse">OVERDUE</span>
+                    <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-danger-custom/10 text-danger-custom">OVERDUE</span>
                   )}
                 </div>
               ))
             ) : (
-              <div className="h-full flex items-center justify-center text-xs text-text-secondary py-12">
-                <BellOff className="h-5 w-5 mr-1" />
-                <span>No pending follow-ups found</span>
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <BellOff className="h-8 w-8 text-text-muted/50 mb-2" />
+                <p className="text-xs font-medium text-text-secondary/70">No pending reminders</p>
+                <p className="text-[11px] text-text-muted/60 mt-0.5">New reminders will appear here.</p>
               </div>
             )}
           </div>
@@ -507,14 +547,14 @@ export default function DashboardClient({
       />
 
       {/* Fourth Row: Recent leads & Recent Activity Feed */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+
         {/* Leads Table */}
-        <div className="lg:col-span-8 bg-surface rounded-card border border-border-custom shadow-sm overflow-hidden flex flex-col">
-          <div className="px-6 py-5 border-b border-border-custom flex items-center justify-between">
+        <div className="lg:col-span-8 bg-surface rounded-card border border-border-custom shadow-sm card-hover overflow-hidden flex flex-col">
+          <div className="px-5 py-4 border-b border-border-custom flex items-center justify-between">
             <div>
-              <h2 className="text-base font-bold tracking-tight text-text-primary">Recent Qualified Leads</h2>
-              <p className="text-xs text-text-secondary mt-0.5">Click on any row to open the intelligence drawer.</p>
+              <h2 className="text-sm font-semibold tracking-tight text-text-primary">Recent Leads</h2>
+              <p className="text-xs text-text-secondary/70 mt-0.5">Click any row to open the intelligence drawer.</p>
             </div>
           </div>
 
@@ -522,8 +562,8 @@ export default function DashboardClient({
             {(filteredLeads || []).length > 0 ? (
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="border-b border-border-custom bg-background/50 text-xs font-semibold text-text-secondary uppercase tracking-wider">
-                    <th className="px-6 py-4 w-12 text-center">
+                  <tr className="border-b border-border-custom bg-background/40">
+                    <th className="px-5 py-3 w-10 text-center">
                       <button
                         onClick={() => {
                           if (selectedLeadIds.length === filteredLeads.length) {
@@ -532,92 +572,100 @@ export default function DashboardClient({
                             setSelectedLeadIds(filteredLeads.map(l => l.id))
                           }
                         }}
-                        className="p-1 hover:bg-background rounded-button text-text-muted hover:text-primary-custom transition-colors cursor-pointer"
+                        className="p-1 rounded hover:bg-background text-text-muted hover:text-primary-custom transition-colors cursor-pointer"
                       >
                         {selectedLeadIds.length === (filteredLeads || []).length && (filteredLeads || []).length > 0 ? (
-                          <CheckSquare className="h-4 w-4 text-primary-custom" />
+                          <CheckSquare className="h-3.5 w-3.5 text-primary-custom" />
                         ) : (
-                          <Square className="h-4 w-4" />
+                          <Square className="h-3.5 w-3.5" />
                         )}
                       </button>
                     </th>
-                    <th className="px-6 py-4">Customer</th>
-                    <th className="px-6 py-4">Source</th>
-                    <th className="px-6 py-4">City</th>
-                    <th className="px-6 py-4">Service</th>
-                    <th className="px-6 py-4">Priority</th>
-                    <th className="px-6 py-4">Lead Score</th>
-                    <th className="px-6 py-4">Status</th>
+                    <th className="px-5 py-3 text-[11px] font-semibold text-text-secondary/70 uppercase tracking-wider">Customer</th>
+                    <th className="px-5 py-3 text-[11px] font-semibold text-text-secondary/70 uppercase tracking-wider">Source</th>
+                    <th className="px-5 py-3 text-[11px] font-semibold text-text-secondary/70 uppercase tracking-wider">City</th>
+                    <th className="px-5 py-3 text-[11px] font-semibold text-text-secondary/70 uppercase tracking-wider">Service</th>
+                    <th className="px-5 py-3 text-[11px] font-semibold text-text-secondary/70 uppercase tracking-wider">Priority</th>
+                    <th className="px-5 py-3 text-[11px] font-semibold text-text-secondary/70 uppercase tracking-wider">Score</th>
+                    <th className="px-5 py-3 text-[11px] font-semibold text-text-secondary/70 uppercase tracking-wider">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border-custom text-sm">
+                <tbody className="divide-y divide-border-custom/60">
                   {(filteredLeads || []).slice(0, 10).map((lead: any) => (
-                    <tr key={lead.id} onClick={() => handleRowClick(lead)} className={`hover:bg-background/80 transition-colors cursor-pointer group ${selectedLeadIds.includes(lead.id) ? 'bg-primary-custom/[0.01]' : ''}`}>
-                      <td className="px-6 py-4 w-12 text-center" onClick={(e) => e.stopPropagation()}>
+                    <tr key={lead.id} onClick={() => handleRowClick(lead)} className={`hover:bg-background/40 transition-colors cursor-pointer group ${selectedLeadIds.includes(lead.id) ? 'bg-primary-custom/[0.02]' : ''}`}>
+                      <td className="px-5 py-3.5 w-10 text-center" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => toggleSelectLead(lead.id)}
-                          className="p-1 hover:bg-background rounded-button text-text-muted hover:text-primary-custom transition-colors cursor-pointer"
+                          className="p-1 rounded hover:bg-background text-text-muted hover:text-primary-custom transition-colors cursor-pointer"
                         >
                           {selectedLeadIds.includes(lead.id) ? (
-                            <CheckSquare className="h-4 w-4 text-primary-custom" />
+                            <CheckSquare className="h-3.5 w-3.5 text-primary-custom" />
                           ) : (
-                            <Square className="h-4 w-4" />
+                            <Square className="h-3.5 w-3.5" />
                           )}
                         </button>
                       </td>
-                      <td className="px-6 py-4 font-semibold text-text-primary group-hover:text-primary-custom transition-colors">{lead.customer_name}</td>
-                      <td className="px-6 py-4">
-                        <span className="inline-flex items-center space-x-1 text-xs font-medium text-text-secondary bg-background px-2.5 py-1 rounded-full border border-border-custom">
+                      <td className="px-5 py-3.5">
+                        <span className="text-sm font-medium text-text-primary group-hover:text-primary-custom transition-colors">{lead.customer_name}</span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-text-secondary/80 bg-background/60 px-2.5 py-1 rounded-md border border-border-custom/60">
                           <Globe className="h-3 w-3 text-text-muted" />
-                          <span>{lead.source || 'Website'}</span>
+                          {lead.source || 'Website'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-text-secondary">{lead.city}</td>
-                      <td className="px-6 py-4 text-text-secondary truncate max-w-32">{lead.service_type}</td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${getPriorityBadgeClass(lead.priority)}`}>{lead.priority}</span>
+                      <td className="px-5 py-3.5 text-sm text-text-secondary/80">{lead.city}</td>
+                      <td className="px-5 py-3.5 text-sm text-text-secondary/80 truncate max-w-28">{lead.service_type}</td>
+                      <td className="px-5 py-3.5">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border leading-none ${getPriorityBadgeClass(lead.priority)}`}>{lead.priority}</span>
                       </td>
-                      <td className="px-6 py-4 font-semibold">{lead.lead_score}</td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusBadgeClass(lead.status)}`}>{lead.status}</span>
+                      <td className="px-5 py-3.5">
+                        <span className="text-sm font-semibold text-text-primary">{lead.lead_score}</span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold leading-none ${getStatusBadgeClass(lead.status)}`}>{lead.status}</span>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             ) : (
-              <div className="p-12 text-center text-text-secondary">
-                <span className="text-base font-semibold">No Leads Ingested</span>
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Inbox className="h-8 w-8 text-text-muted/50 mb-2" />
+                <p className="text-xs font-semibold text-text-secondary/80">No leads found</p>
+                <p className="text-[11px] text-text-muted/60 mt-0.5">Leads will appear here once ingested.</p>
               </div>
             )}
           </div>
         </div>
 
         {/* Recent Activity Feed */}
-        <div className="lg:col-span-4 bg-surface rounded-card border border-border-custom shadow-sm p-6 flex flex-col justify-between">
-          <div className="pb-4 border-b border-border-custom mb-4">
-            <h2 className="text-base font-bold tracking-tight text-text-primary">Recent Activity Feed</h2>
-            <p className="text-xs text-text-secondary mt-0.5">Real-time audit log of active leads.</p>
+        <div className="lg:col-span-4 bg-surface rounded-card border border-border-custom shadow-sm card-hover flex flex-col">
+          <div className="px-5 py-4 border-b border-border-custom">
+            <h2 className="text-sm font-semibold tracking-tight text-text-primary">Activity Feed</h2>
+            <p className="text-xs text-text-secondary/70 mt-0.5">Real-time audit log of lead events.</p>
           </div>
-          <div className="flex-1 space-y-4 overflow-y-auto max-h-87.5 pr-1">
+          <div className="flex-1 p-5 space-y-3 overflow-y-auto max-h-[400px] scrollbar-thin">
             {eventsList.length > 0 ? (
               eventsList.map((evt) => (
-                <div key={evt.id} className="flex items-start space-x-3 text-sm p-1 hover:bg-background/40 rounded-lg transition-colors">
-                  <div className="p-1.5 bg-background rounded-button border border-border-custom shrink-0 mt-0.5">
+                <div key={evt.id} className="flex items-start gap-3">
+                  <div className="p-1.5 bg-background rounded-lg border border-border-custom/60 shrink-0 mt-0.5">
                     {getEventIcon(evt.event_type)}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-text-secondary leading-normal">{evt.description}</p>
-                    <div className="flex items-center justify-between mt-1 text-[10px] text-text-muted font-medium">
-                      <span>{evt.hvac_leads?.customer_name || 'System Auto'}</span>
-                      <span>{formatRelativeTime(evt.created_at)}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs text-text-secondary/90 leading-relaxed">{evt.description}</p>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-[11px] font-medium text-text-muted">{evt.hvac_leads?.customer_name || 'System'}</span>
+                      <span className="text-[11px] text-text-muted/70">{formatRelativeTime(evt.created_at)}</span>
                     </div>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="h-full flex items-center justify-center text-xs text-text-secondary py-12">
-                No active events logged
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <Activity className="h-8 w-8 text-text-muted/50 mb-2" />
+                <p className="text-xs font-medium text-text-secondary/70">No recent activity</p>
+                <p className="text-[11px] text-text-muted/60 mt-0.5">Events will appear here in real time.</p>
               </div>
             )}
           </div>
@@ -640,40 +688,40 @@ export default function DashboardClient({
 
       {/* Dashboard Bulk Operations Floating Toolbar */}
       {selectedLeadIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-surface border-2 border-primary-custom rounded-card shadow-2xl p-4 z-40 flex items-center space-x-4 animate-fade-in text-sm font-semibold max-w-lg w-full justify-between">
-          <div className="flex items-center space-x-2">
-            <ShieldAlert className="h-5 w-5 text-primary-custom" />
-            <span>{selectedLeadIds.length} Selected</span>
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-surface border border-border-custom shadow-xl rounded-xl p-3 z-40 flex items-center gap-4 animate-fade-in text-sm font-semibold max-w-lg w-full justify-between">
+          <div className="flex items-center gap-2 px-1">
+            <ShieldAlert className="h-4 w-4 text-primary-custom" />
+            <span className="text-xs font-medium text-text-secondary">{selectedLeadIds.length} selected</span>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-1.5">
             {bulkLoading ? (
-              <Loader2 className="animate-spin h-5 w-5 text-primary-custom" />
+              <Loader2 className="animate-spin h-4 w-4 text-primary-custom" />
             ) : (
               <>
                 <button
                   onClick={() => handleBulkStatusChange('CONTACTED')}
-                  className="px-2.5 py-1.5 bg-warning-custom/10 text-warning-custom border border-warning-custom/25 rounded-button text-xs font-bold hover:bg-warning-custom/20 cursor-pointer"
+                  className="px-2.5 py-1.5 bg-warning-custom/8 text-warning-custom rounded-lg text-[11px] font-semibold hover:bg-warning-custom/15 transition-colors cursor-pointer"
                 >
                   Contacted
                 </button>
                 <button
                   onClick={() => handleBulkStatusChange('COMPLETED')}
-                  className="px-2.5 py-1.5 bg-success-custom/10 text-success-custom border border-success-custom/25 rounded-button text-xs font-bold hover:bg-success-custom/20 cursor-pointer"
+                  className="px-2.5 py-1.5 bg-success-custom/8 text-success-custom rounded-lg text-[11px] font-semibold hover:bg-success-custom/15 transition-colors cursor-pointer"
                 >
                   Complete
                 </button>
                 <button
                   onClick={() => handleBulkStatusChange('LOST')}
-                  className="px-2.5 py-1.5 bg-text-secondary/10 text-text-secondary border border-border-custom rounded-button text-xs font-bold hover:bg-background cursor-pointer"
+                  className="px-2.5 py-1.5 bg-text-secondary/8 text-text-secondary rounded-lg text-[11px] font-semibold hover:bg-text-secondary/15 transition-colors cursor-pointer"
                 >
                   Lost
                 </button>
                 <button
                   onClick={handleBulkDelete}
-                  className="p-1.5 bg-danger-custom/10 text-danger-custom border border-danger-custom/25 rounded-button hover:bg-danger-custom/20 cursor-pointer"
+                  className="p-1.5 bg-danger-custom/8 text-danger-custom rounded-lg hover:bg-danger-custom/15 transition-colors cursor-pointer"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </>
             )}
@@ -683,30 +731,34 @@ export default function DashboardClient({
 
       {/* Confirmation Dialog for Bulk Delete */}
       {confirmDeleteState.visible && (
-        <div className="fixed inset-0 z-[60] overflow-hidden flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setConfirmDeleteState(prev => ({ ...prev, visible: false }))} />
-          <div className="relative bg-surface w-full max-w-sm rounded-card border border-border-custom p-6 shadow-2xl space-y-4 animate-fade-in text-sm text-text-primary">
-            <div className="flex items-center space-x-3 pb-3 border-b border-border-custom">
-              <div className="h-8 w-8 rounded-full bg-warning-custom/10 flex items-center justify-center text-warning-custom">
-                <AlertTriangle className="h-4 w-4" />
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setConfirmDeleteState(prev => ({ ...prev, visible: false }))} />
+          <div className="relative bg-surface w-full max-w-sm rounded-card border border-border-custom p-5 shadow-2xl animate-fade-in">
+            <div className="flex items-start gap-3 pb-4 border-b border-border-custom mb-4">
+              <div className="h-8 w-8 rounded-lg bg-warning-custom/10 flex items-center justify-center shrink-0">
+                <AlertTriangle className="h-4 w-4 text-warning-custom" />
               </div>
-              <h3 className="font-bold text-sm">Delete Leads</h3>
+              <div>
+                <h3 className="text-sm font-semibold text-text-primary">Delete Leads</h3>
+                <p className="text-xs text-text-secondary/70 mt-0.5">This action cannot be undone.</p>
+              </div>
             </div>
-            <p className="text-xs text-text-secondary leading-relaxed">
-              Are you sure you want to delete {confirmDeleteState.count} selected leads? This action cannot be undone.
+            <p className="text-xs text-text-secondary/80 leading-relaxed mb-4">
+              Are you sure you want to delete <strong className="text-text-primary">{confirmDeleteState.count}</strong> selected leads?
             </p>
-            <div className="flex justify-end space-x-2 pt-2">
+            <div className="flex justify-end gap-2">
               <button
                 onClick={() => setConfirmDeleteState(prev => ({ ...prev, visible: false }))}
-                className="px-4 py-2 border border-border-custom hover:bg-background rounded-button text-xs font-semibold cursor-pointer"
+                className="px-4 py-2 border border-border-custom hover:bg-background rounded-lg text-xs font-medium cursor-pointer transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={executeBulkDelete}
-                className="px-4 py-2 bg-danger-custom text-white hover:bg-danger-custom/80 rounded-button text-xs font-semibold cursor-pointer flex items-center space-x-1"
+                className="px-4 py-2 bg-danger-custom text-white hover:bg-danger-custom/90 rounded-lg text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5"
               >
-                <span>Delete</span>
+                <Trash2 className="h-3 w-3" />
+                Delete
               </button>
             </div>
           </div>

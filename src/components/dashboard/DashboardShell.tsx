@@ -1,20 +1,18 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createClient } from '../../lib/supabase/client'
-import { 
-  LayoutDashboard, 
-  Users, 
-  BarChart3, 
-  Settings, 
-  User, 
-  LogOut, 
-  Menu, 
+import {
+  LayoutDashboard,
+  Users,
+  BarChart3,
+  Settings,
+  User,
+  LogOut,
+  Menu,
   X,
-  Bell,
-  Search,
   ChevronRight,
   KanbanSquare
 } from 'lucide-react'
@@ -36,6 +34,8 @@ export default function DashboardShell({ children, userProfile }: DashboardShell
   const pathname = usePathname()
   const router = useRouter()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isMobileMenuClosing, setIsMobileMenuClosing] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
   const supabase = createClient()
 
   const navigation = [
@@ -57,32 +57,78 @@ export default function DashboardShell({ children, userProfile }: DashboardShell
     ? userProfile.fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
     : 'US'
 
+  // ESC key closes mobile sidebar
+  useEffect(() => {
+    if (!isMobileMenuOpen || isMobileMenuClosing) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeMobileMenu()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isMobileMenuOpen, isMobileMenuClosing])
+
+  // Body scroll lock while mobile sidebar is fully open
+  useEffect(() => {
+    if (isMobileMenuOpen && !isMobileMenuClosing) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [isMobileMenuOpen, isMobileMenuClosing])
+
+  // Focus previously-focused trigger button when sidebar closes
+  useEffect(() => {
+    if (!isMobileMenuOpen && !isMobileMenuClosing && triggerRef.current) {
+      triggerRef.current.focus()
+    }
+  }, [isMobileMenuOpen, isMobileMenuClosing])
+
+  const openMobileMenu = useCallback(() => {
+    setIsMobileMenuClosing(false)
+    setIsMobileMenuOpen(true)
+  }, [])
+
+  const closeMobileMenu = useCallback(() => {
+    setIsMobileMenuClosing(true)
+    setTimeout(() => {
+      setIsMobileMenuOpen(false)
+      setIsMobileMenuClosing(false)
+    }, 250)
+  }, [])
+
   return (
-    <div className="min-h-screen bg-background flex text-text-primary antialiased selection:bg-primary-custom/20">
-      
+    <div className="min-h-screen bg-background flex text-text-primary antialiased selection:bg-primary-custom/20 w-full min-w-0 overflow-x-hidden">
+
       {/* 1. Desktop Sidebar (Width: 280px, WCAG Semantic Aside) */}
-      <aside 
-        role="complementary" 
+      <aside
+        role="complementary"
         aria-label="Main Sidebar Navigation"
-        className="hidden md:flex flex-col w-[280px] bg-surface border-r border-border-custom shrink-0 fixed inset-y-0 left-0 z-20 transition-all duration-200"
+        className="hidden md:flex flex-col w-[280px] bg-surface border-r border-border-custom shrink-0 fixed inset-y-0 left-0 z-20 transition-all duration-150"
       >
         {/* Brand/Logo Area */}
         <div className="h-[72px] flex items-center px-6 border-b border-border-custom">
-          <Link 
-            href="/dashboard" 
+          <Link
+            href="/dashboard"
             aria-label="HVAC AI Platform Home"
-            className="flex items-center space-x-2.5 rounded-input focus-visible:ring-2 focus-visible:ring-primary-custom focus-visible:ring-offset-2 outline-none"
+            className="flex items-center gap-2.5 rounded-lg focus-visible:ring-2 focus-visible:ring-primary-custom focus-visible:ring-offset-2 outline-none"
           >
-            <div className="h-8 w-8 rounded-button bg-primary-custom flex items-center justify-center text-white font-extrabold text-sm shadow-sm select-none">
+            <div className="h-7 w-7 rounded-lg bg-primary-custom flex items-center justify-center text-white font-bold text-xs shadow-sm select-none">
               H
             </div>
-            <span className="font-bold text-base tracking-tight select-none">HVAC AI</span>
+            <span className="font-semibold text-sm tracking-tight select-none">HVAC AI</span>
           </Link>
         </div>
 
         {/* Sidebar Nav Links (WCAG Semantic Navigation) */}
-        <nav 
-          role="navigation" 
+        <nav
+          role="navigation"
           aria-label="Desktop Navigation Links"
           className="flex-1 px-4 py-6 space-y-1 overflow-y-auto"
         >
@@ -94,13 +140,14 @@ export default function DashboardShell({ children, userProfile }: DashboardShell
                 key={item.name}
                 href={item.href}
                 aria-current={isActive ? 'page' : undefined}
-                className={`flex items-center space-x-3 px-3 py-2.5 rounded-button text-sm font-semibold transition-all duration-150 outline-none focus-visible:ring-2 focus-visible:ring-primary-custom focus-visible:ring-offset-2 ${
-                  isActive 
-                    ? 'bg-primary-custom/10 text-primary-custom' 
+                className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-primary-custom focus-visible:ring-offset-2 ${
+                  isActive
+                    ? 'bg-primary-custom/10 text-primary-custom'
                     : 'text-text-secondary hover:bg-background hover:text-text-primary'
                 }`}
+                style={{ transition: 'background-color 150ms ease, color 150ms ease' }}
               >
-                <Icon className="h-4 w-4 shrink-0" />
+                <Icon className="h-4 w-4 shrink-0" style={{ transition: 'color 150ms ease' }} />
                 <span>{item.name}</span>
               </Link>
             )
@@ -121,9 +168,10 @@ export default function DashboardShell({ children, userProfile }: DashboardShell
           <button
             onClick={handleLogout}
             aria-label="Sign Out of HVAC console"
-            className="w-full flex items-center justify-center space-x-2 px-3 py-2.5 border border-border-custom rounded-button text-sm font-bold text-danger-custom hover:bg-danger-custom/10 transition-colors duration-150 outline-none focus-visible:ring-2 focus-visible:ring-danger-custom focus-visible:ring-offset-2 cursor-pointer"
+            className="w-full flex items-center justify-center space-x-2 px-3 py-2.5 border border-border-custom rounded-lg text-sm font-bold text-danger-custom hover:bg-danger-custom/10 outline-none focus-visible:ring-2 focus-visible:ring-danger-custom focus-visible:ring-offset-2 cursor-pointer"
+            style={{ transition: 'background-color 150ms ease' }}
           >
-            <LogOut className="h-4 w-4 shrink-0" />
+            <LogOut className="h-4 w-4 shrink-0" style={{ transition: 'color 150ms ease' }} />
             <span>Sign Out</span>
           </button>
         </div>
@@ -131,19 +179,32 @@ export default function DashboardShell({ children, userProfile }: DashboardShell
 
       {/* 2. Mobile Responsive Drawer (A11y Compliant) */}
       {isMobileMenuOpen && (
-        <div className="fixed inset-0 z-50 overflow-hidden flex md:hidden animate-fade-in" role="dialog" aria-modal="true">
-          {/* Backdrop Blur */}
-          <div 
-            className="fixed inset-0 bg-black/30 backdrop-blur-xs transition-opacity" 
-            onClick={() => setIsMobileMenuOpen(false)} 
+        <div
+          className="fixed inset-0 z-50 md:hidden"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Mobile navigation menu"
+        >
+          {/* Backdrop */}
+          <div
+            className={`fixed inset-0 bg-black/30 backdrop-blur-xs transition-all duration-[250ms] ease-out ${
+              isMobileMenuClosing ? 'opacity-0' : 'opacity-100'
+            }`}
+            onClick={closeMobileMenu}
+            aria-hidden="true"
           />
-          <aside className="relative flex flex-col w-[280px] max-w-xs bg-surface h-full z-10 p-5 border-r border-border-custom animate-slide-in">
+          {/* Sidebar */}
+          <aside
+            className={`relative flex flex-col w-[280px] max-w-xs bg-surface h-full z-10 p-5 border-r border-border-custom ${
+              isMobileMenuClosing ? 'animate-slide-out-left' : 'animate-slide-in-left'
+            }`}
+          >
             <div className="flex items-center justify-between mb-8">
               <span className="font-extrabold text-lg select-none">HVAC AI</span>
-              <button 
-                onClick={() => setIsMobileMenuOpen(false)} 
+              <button
+                onClick={closeMobileMenu}
                 aria-label="Close Mobile Navigation Menu"
-                className="p-1.5 rounded-button hover:bg-background outline-none focus-visible:ring-2 focus-visible:ring-primary-custom cursor-pointer"
+                className="p-1.5 rounded-lg hover:bg-background outline-none focus-visible:ring-2 focus-visible:ring-primary-custom cursor-pointer"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -157,14 +218,15 @@ export default function DashboardShell({ children, userProfile }: DashboardShell
                     key={item.name}
                     href={item.href}
                     aria-current={isActive ? 'page' : undefined}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                    className={`flex items-center space-x-3 px-3 py-2.5 rounded-button text-sm font-semibold transition-all outline-none focus-visible:ring-2 focus-visible:ring-primary-custom ${
-                      isActive 
-                        ? 'bg-primary-custom/10 text-primary-custom' 
+                    onClick={closeMobileMenu}
+                    className={`flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-primary-custom ${
+                      isActive
+                        ? 'bg-primary-custom/10 text-primary-custom'
                         : 'text-text-secondary hover:bg-background hover:text-text-primary'
                     }`}
+                    style={{ transition: 'background-color 150ms ease, color 150ms ease' }}
                   >
-                    <Icon className="h-4 w-4 shrink-0" />
+                    <Icon className="h-4 w-4 shrink-0" style={{ transition: 'color 150ms ease' }} />
                     <span>{item.name}</span>
                   </Link>
                 )
@@ -174,9 +236,10 @@ export default function DashboardShell({ children, userProfile }: DashboardShell
               <button
                 onClick={handleLogout}
                 aria-label="Sign Out of HVAC console"
-                className="w-full flex items-center justify-center space-x-2 px-3 py-2.5 border border-border-custom rounded-button text-sm font-bold text-danger-custom hover:bg-danger-custom/10 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-danger-custom cursor-pointer"
+                className="w-full flex items-center justify-center space-x-2 px-3 py-2.5 border border-border-custom rounded-lg text-sm font-bold text-danger-custom hover:bg-danger-custom/10 outline-none focus-visible:ring-2 focus-visible:ring-danger-custom focus-visible:ring-offset-2 cursor-pointer"
+                style={{ transition: 'background-color 150ms ease' }}
               >
-                <LogOut className="h-4 w-4 shrink-0" />
+                <LogOut className="h-4 w-4 shrink-0" style={{ transition: 'color 150ms ease' }} />
                 <span>Sign Out</span>
               </button>
             </div>
@@ -185,58 +248,40 @@ export default function DashboardShell({ children, userProfile }: DashboardShell
       )}
 
       {/* 3. Main Workspace Container */}
-      <div className="flex-1 flex flex-col md:pl-[280px]">
-        
+      <div className="flex-1 flex flex-col md:pl-[280px] min-w-0 w-full">
+
         {/* Top Header (Height: 72px, role: banner) */}
-        <header 
-          role="banner" 
+        <header
+          role="banner"
           className="h-[72px] bg-surface border-b border-border-custom flex items-center justify-between px-6 sticky top-0 z-10 select-none"
         >
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center gap-4">
             <button
-              onClick={() => setIsMobileMenuOpen(true)}
+              ref={triggerRef}
+              onClick={openMobileMenu}
               aria-label="Open Mobile Navigation Menu"
               aria-expanded={isMobileMenuOpen}
-              className="md:hidden p-1.5 rounded-button hover:bg-background outline-none focus-visible:ring-2 focus-visible:ring-primary-custom cursor-pointer"
+              className="md:hidden p-1.5 rounded-lg hover:bg-background outline-none focus-visible:ring-2 focus-visible:ring-primary-custom cursor-pointer"
             >
               <Menu className="h-5 w-5" />
             </button>
-            
-            {/* Search Box - Responsive layout */}
-            <div className="hidden sm:flex items-center space-x-2 bg-background border border-border-custom rounded-input px-3 py-2 w-64 text-text-secondary focus-within:border-primary-custom transition-all">
-              <Search className="h-4 w-4 shrink-0" />
-              <input 
-                type="text" 
-                placeholder="Search leads..." 
-                aria-label="Quick Search Console"
-                className="bg-transparent border-none outline-none text-xs font-semibold w-full text-text-primary"
-              />
-            </div>
           </div>
 
-          <div className="flex items-center space-x-4">
-            {/* Notifications Button */}
-            <button 
-              aria-label="View notifications center"
-              className="p-2 rounded-button hover:bg-background relative text-text-secondary hover:text-text-primary outline-none focus-visible:ring-2 focus-visible:ring-primary-custom transition-colors cursor-pointer"
-            >
-              <Bell className="h-4 w-4" />
-              <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-danger-custom" />
-            </button>
+          <div className="flex items-center gap-2">
 
             {/* Breadcrumb Info Indicator */}
-            <div className="hidden lg:flex items-center space-x-2 text-xs font-bold text-text-secondary">
-              <span className="uppercase tracking-wider">{userProfile.companyName || 'Enterprise'}</span>
-              <ChevronRight className="h-3.5 w-3.5 text-text-muted" />
-              <span className="text-text-primary capitalize">{pathname.replace('/', '')}</span>
+            <div className="hidden lg:flex items-center gap-2 text-xs text-text-secondary/70">
+              <span className="font-medium">{userProfile.companyName || 'Enterprise'}</span>
+              <ChevronRight className="h-3 w-3 text-text-muted" />
+              <span className="font-medium text-text-primary capitalize">{pathname.replace('/', '')}</span>
             </div>
           </div>
         </header>
 
         {/* 4. Page Content (Max width: 1600px, padding: 32px) */}
-        <main 
-          role="main" 
-          className="flex-1 w-full max-w-[1600px] mx-auto p-6 md:p-8 animate-fade-in"
+        <main
+          role="main"
+          className="flex-1 w-full max-w-[1600px] mx-auto p-5 md:p-6 lg:p-8 animate-fade-in min-w-0"
         >
           {children}
         </main>

@@ -46,81 +46,81 @@ export default function SettingsClient({ initialSettings }: { initialSettings: S
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight text-text-primary">System Settings</h1>
-        <p className="text-sm text-text-secondary mt-1">Configure global webhook channels and automation configurations.</p>
+    <div className="max-w-2xl mx-auto space-y-5">
+      <div className="pb-5 border-b border-border-custom">
+        <h1 className="text-xl font-bold tracking-tight text-text-primary">Settings</h1>
+        <p className="text-sm text-text-secondary/80 mt-0.5">Configure webhook channels and automation preferences.</p>
       </div>
 
       {successMsg && (
-        <div className="p-4 rounded-input bg-success-custom/10 text-success-custom text-sm font-semibold border border-success-custom/20">
+        <div className="p-4 rounded-lg bg-success-custom/10 text-success-custom text-xs font-medium border border-success-custom/20">
           {successMsg}
         </div>
       )}
       {errorMsg && (
-        <div className="p-4 rounded-input bg-danger-custom/10 text-danger-custom text-sm font-semibold border border-danger-custom/20">
+        <div className="p-4 rounded-lg bg-danger-custom/10 text-danger-custom text-xs font-medium border border-danger-custom/20">
           {errorMsg}
         </div>
       )}
 
       <form onSubmit={handleSubmit} className="bg-surface border border-border-custom rounded-card shadow-sm overflow-hidden divide-y divide-border-custom">
-        
+
         {/* n8n Webhook input */}
-        <div className="p-6 md:p-8 space-y-4">
-          <div className="flex items-center space-x-2.5">
+        <div className="p-6 space-y-4">
+          <div className="flex items-center gap-2.5">
             <Radio className="h-5 w-5 text-primary-custom" />
-            <h3 className="text-base font-bold text-text-primary">Automation Webhook (n8n)</h3>
+            <h3 className="text-sm font-semibold text-text-primary">Automation Webhook (n8n)</h3>
           </div>
-          <p className="text-xs text-text-secondary leading-relaxed max-w-lg">
-            Input your n8n Production Webhook URL. This endpoint securely receives JSON payloads when dispatch quick actions are executed [PRD.md].
+          <p className="text-xs text-text-secondary/80 leading-relaxed max-w-lg">
+            Input your n8n Production Webhook URL. This endpoint receives JSON payloads when dispatch quick actions are executed.
           </p>
-          
+
           <div>
-            <input 
+            <input
               id="n8nWebhookUrl"
               name="n8nWebhookUrl"
               type="url"
               placeholder="https://your-n8n-instance.com/webhook/hvac-leads"
               defaultValue={initialSettings.n8nWebhookUrl}
-              className="w-full px-3 py-2.5 bg-background border border-border-custom rounded-input text-text-primary text-sm font-mono focus:border-primary-custom"
+              className="w-full px-3 py-2.5 bg-background border border-border-custom rounded-lg text-text-primary text-sm font-mono placeholder:text-text-muted/60 outline-none focus:ring-2 focus:ring-primary-custom/15 focus:border-primary-custom/60 transition-all"
             />
           </div>
         </div>
 
         {/* Operational Preferences (Toggles) */}
-        <div className="p-6 md:p-8 space-y-6">
-          <div className="flex items-center space-x-2.5">
+        <div className="p-6 space-y-5">
+          <div className="flex items-center gap-2.5">
             <BellRing className="h-5 w-5 text-primary-custom" />
-            <h3 className="text-base font-bold text-text-primary">Operational Preferences</h3>
+            <h3 className="text-sm font-semibold text-text-primary">Operational Preferences</h3>
           </div>
-          
-          <div className="space-y-4">
-            
+
+          <div className="space-y-3">
+
             {/* Toggle 1: Emergency Email */}
-            <div 
+            <div
               onClick={() => setEmergencyEmail(!emergencyEmail)}
-              className="flex items-center justify-between p-3.5 bg-background border border-border-custom rounded-input cursor-pointer hover:border-primary-custom/30 transition-colors"
+              className="flex items-center justify-between p-3.5 bg-background border border-border-custom rounded-lg cursor-pointer hover:border-primary-custom/30 transition-colors"
             >
               <div className="space-y-0.5 select-none">
-                <div className="text-sm font-semibold text-text-primary">Emergency Lead Email Dispatch</div>
-                <p className="text-[11px] text-text-secondary">Receive immediate notification to owner on high priority leads [PRD.md].</p>
+                <div className="text-sm font-medium text-text-primary">Emergency Lead Email Dispatch</div>
+                <p className="text-xs text-text-secondary/70">Receive immediate notification on high priority leads.</p>
               </div>
-              <div className={`h-6 w-11 rounded-full p-0.5 transition-colors duration-200 ease-in-out cursor-pointer ${emergencyEmail ? 'bg-primary-custom' : 'bg-border-custom'}`}>
-                <div className={`h-5 w-5 rounded-full bg-white shadow-sm transform transition-transform duration-200 ease-in-out ${emergencyEmail ? 'translate-x-5' : 'translate-x-0'}`} />
+              <div className={`h-6 w-11 rounded-full p-0.5 transition-colors duration-200 shrink-0 ${emergencyEmail ? 'bg-primary-custom' : 'bg-border-custom'}`}>
+                <div className={`h-5 w-5 rounded-full bg-white shadow-sm transform transition-transform duration-200 ${emergencyEmail ? 'translate-x-5' : 'translate-x-0'}`} />
               </div>
             </div>
 
             {/* Toggle 2: AI Ingestion */}
-            <div 
+            <div
               onClick={() => setAutoAi(!autoAi)}
-              className="flex items-center justify-between p-3.5 bg-background border border-border-custom rounded-input cursor-pointer hover:border-primary-custom/30 transition-colors"
+              className="flex items-center justify-between p-3.5 bg-background border border-border-custom rounded-lg cursor-pointer hover:border-primary-custom/30 transition-colors"
             >
               <div className="space-y-0.5 select-none">
-                <div className="text-sm font-semibold text-text-primary">Automatic AI Ingestion</div>
-                <p className="text-[11px] text-text-secondary">Route new leads immediately to OpenRouter LLM model [PRD.md].</p>
+                <div className="text-sm font-medium text-text-primary">Automatic AI Ingestion</div>
+                <p className="text-xs text-text-secondary/70">Route new leads to OpenRouter LLM model automatically.</p>
               </div>
-              <div className={`h-6 w-11 rounded-full p-0.5 transition-colors duration-200 ease-in-out cursor-pointer ${autoAi ? 'bg-primary-custom' : 'bg-border-custom'}`}>
-                <div className={`h-5 w-5 rounded-full bg-white shadow-sm transform transition-transform duration-200 ease-in-out ${autoAi ? 'translate-x-5' : 'translate-x-0'}`} />
+              <div className={`h-6 w-11 rounded-full p-0.5 transition-colors duration-200 shrink-0 ${autoAi ? 'bg-primary-custom' : 'bg-border-custom'}`}>
+                <div className={`h-5 w-5 rounded-full bg-white shadow-sm transform transition-transform duration-200 ${autoAi ? 'translate-x-5' : 'translate-x-0'}`} />
               </div>
             </div>
 
@@ -128,22 +128,22 @@ export default function SettingsClient({ initialSettings }: { initialSettings: S
         </div>
 
         {/* Footer actions */}
-        <div className="px-6 py-4 bg-background/50 flex items-center justify-between">
-          <span className="flex items-center space-x-1.5 text-xs text-text-secondary font-medium">
+        <div className="px-6 py-4 bg-background/30 flex items-center justify-between">
+          <span className="flex items-center gap-1.5 text-xs text-text-secondary/70 font-medium">
             <ShieldCheck className="h-4 w-4 text-success-custom" />
             <span>Secure settings sync active</span>
           </span>
           <button
             type="submit"
             disabled={loading}
-            className="flex items-center justify-center space-x-2 px-5 py-2.5 rounded-button text-sm font-semibold text-white bg-primary-custom hover:bg-primary-hover disabled:opacity-50 transition-colors cursor-pointer"
+            className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-sm font-medium text-white bg-primary-custom hover:bg-primary-hover disabled:opacity-50 transition-colors cursor-pointer"
           >
             {loading ? (
-              <Loader2 className="animate-spin h-4 w-4 text-white" />
+              <Loader2 className="animate-spin h-4 w-4" />
             ) : (
               <>
                 <Save className="h-4 w-4" />
-                <span>Save System Configurations</span>
+                <span>Save Settings</span>
               </>
             )}
           </button>

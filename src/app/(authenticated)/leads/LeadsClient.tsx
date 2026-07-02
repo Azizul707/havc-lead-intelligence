@@ -5,7 +5,7 @@ import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import {
   Download, Search, Globe, ArrowUpDown,
   SlidersHorizontal, CheckSquare, Square, Trash2, ShieldAlert, FolderOpen, Loader2,
-  ChevronLeft, ChevronRight, AlertTriangle
+  ChevronLeft, ChevronRight, AlertTriangle, X
 } from 'lucide-react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '../../../lib/supabase/client'
@@ -249,11 +249,11 @@ export default function LeadsClient({
 
   const getStatusBadgeClass = (status: string) => {
     switch (status) {
-      case 'NEW': return 'bg-primary-custom/10 text-primary-custom'
-      case 'CONTACTED': return 'bg-warning-custom/10 text-warning-custom font-semibold'
-      case 'SCHEDULED': return 'bg-info-custom/10 text-info-custom'
-      case 'COMPLETED': return 'bg-success-custom/10 text-success-custom'
-      default: return 'bg-text-secondary/10 text-text-secondary'
+      case 'NEW': return 'bg-primary-custom/10 text-primary-custom border-primary-custom/20'
+      case 'CONTACTED': return 'bg-warning-custom/10 text-warning-custom border-warning-custom/20'
+      case 'SCHEDULED': return 'bg-info-custom/10 text-info-custom border-info-custom/20'
+      case 'COMPLETED': return 'bg-success-custom/10 text-success-custom border-success-custom/20'
+      default: return 'bg-text-secondary/10 text-text-secondary border-text-secondary/20'
     }
   }
 
@@ -267,11 +267,11 @@ export default function LeadsClient({
   const endItem = Math.min(currentPage * pageSize, totalCount)
 
   return (
-    <div className="space-y-6 relative">
+    <div className="space-y-5 relative">
 
       {/* Toast */}
       {toastMsg && (
-        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-button text-xs font-semibold shadow-2xl animate-fade-in ${
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-lg text-xs font-medium shadow-2xl animate-fade-in ${
           toastType === 'error' ? 'bg-danger-custom text-white' : 'bg-text-primary text-background'
         }`}>
           {toastMsg}
@@ -279,194 +279,207 @@ export default function LeadsClient({
       )}
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-border-custom">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-text-primary">CRM Leads Dispatch Console</h1>
-          <p className="text-sm text-text-secondary mt-1">Manage pipeline routing and customer dispatch jobs.</p>
+      <div className="flex flex-col gap-4 pb-5 border-b border-border-custom">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="space-y-0.5">
+            <h1 className="text-xl font-bold tracking-tight text-text-primary">Leads</h1>
+            <p className="text-sm text-text-secondary/80">Manage pipeline routing and customer dispatch jobs.</p>
+          </div>
         </div>
       </div>
 
       {/* Advanced Filter and Search Bar */}
-      <div className="bg-surface border border-border-custom rounded-card p-4 shadow-sm space-y-4">
-        <div className="flex flex-col md:flex-row gap-3">
+      <div className="bg-surface border border-border-custom rounded-card shadow-sm card-hover">
+        <div className="p-4 space-y-4">
+          <div className="flex flex-col md:flex-row gap-3">
 
-          {/* Live Search */}
-          <div className="flex-1 flex items-center space-x-2 bg-background border border-border-custom rounded-input px-3 py-2 text-text-secondary focus-within:border-primary-custom">
-            <Search className="h-4 w-4" />
-            <input
-              type="text"
-              value={localSearch}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              placeholder="Search by customer name, phone, city..."
-              aria-label="Search leads"
-              className="bg-transparent border-none outline-none text-sm w-full text-text-primary"
-            />
+            {/* Live Search */}
+            <div className="flex-1 flex items-center gap-2 bg-background border border-border-custom rounded-lg px-3 py-2 text-text-secondary focus-within:border-primary-custom/60 focus-within:ring-2 focus-within:ring-primary-custom/10 transition-all">
+              <Search className="h-4 w-4 shrink-0 text-text-muted" />
+              <input
+                type="text"
+                value={localSearch}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                placeholder="Search by name, phone, city..."
+                aria-label="Search leads"
+                className="bg-transparent border-none outline-none text-sm w-full text-text-primary placeholder:text-text-muted/60"
+              />
+              {localSearch && (
+                <button onClick={() => { setLocalSearch(''); handleSearchChange('') }} className="p-0.5 text-text-muted hover:text-text-secondary cursor-pointer" aria-label="Clear search">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Sorter */}
+            <div className="flex items-center gap-2 bg-background border border-border-custom rounded-lg px-3 py-2 text-text-secondary">
+              <ArrowUpDown className="h-4 w-4 shrink-0 text-text-muted" />
+              <select
+                value={initialSort === 'newest' && !searchParams.get('sort') ? 'newest' : initialSort}
+                onChange={(e) => handleSortChange(e.target.value)}
+                aria-label="Sort leads"
+                className="bg-transparent border-none outline-none text-xs font-medium text-text-primary cursor-pointer"
+              >
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
+                <option value="score-desc">Highest Score</option>
+                <option value="score-asc">Lowest Score</option>
+                <option value="priority">Priority</option>
+              </select>
+            </div>
           </div>
 
-          {/* Sorter */}
-          <div className="flex items-center space-x-2 bg-background border border-border-custom rounded-input px-3 py-2 text-text-secondary">
-            <ArrowUpDown className="h-4 w-4" />
+          {/* Dropdown Filters */}
+          <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 pt-3 border-t border-border-custom/50">
+            <div className="flex items-center gap-1.5 text-xs text-text-secondary/70 font-medium shrink-0">
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Filters</span>
+            </div>
+
             <select
-              value={initialSort === 'newest' && !searchParams.get('sort') ? 'newest' : initialSort}
-              onChange={(e) => handleSortChange(e.target.value)}
-              aria-label="Sort leads"
-              className="bg-transparent border-none outline-none text-xs font-semibold text-text-primary cursor-pointer"
+              value={initialPriority}
+              onChange={(e) => handleFilterChange('priority', e.target.value)}
+              aria-label="Filter by priority"
+              className="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-2 py-1.5 bg-background border border-border-custom rounded-lg text-xs font-medium text-text-primary cursor-pointer hover:border-text-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-custom/30"
             >
-              <option value="newest">Newest</option>
-              <option value="oldest">Oldest</option>
-              <option value="score-desc">Highest Score</option>
-              <option value="score-asc">Lowest Score</option>
-              <option value="priority">Priority</option>
+              <option value="all">Priority</option>
+              <option value="LOW">Low</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="HIGH">High</option>
+              <option value="CRITICAL">Critical</option>
             </select>
+
+            <select
+              value={initialCity}
+              onChange={(e) => handleFilterChange('city', e.target.value)}
+              aria-label="Filter by city"
+              className="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-2 py-1.5 bg-background border border-border-custom rounded-lg text-xs font-medium text-text-primary cursor-pointer hover:border-text-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-custom/30"
+            >
+              <option value="all">City</option>
+              {uniqueCities.map(city => (
+                <option key={city} value={city}>{city}</option>
+              ))}
+            </select>
+
+            <select
+              value={initialSource}
+              onChange={(e) => handleFilterChange('source', e.target.value)}
+              aria-label="Filter by source"
+              className="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-2 py-1.5 bg-background border border-border-custom rounded-lg text-xs font-medium text-text-primary cursor-pointer hover:border-text-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-custom/30"
+            >
+              <option value="all">Source</option>
+              {uniqueSources.map(src => (
+                <option key={src} value={src}>{src}</option>
+              ))}
+            </select>
+
+            <select
+              value={initialService}
+              onChange={(e) => handleFilterChange('service', e.target.value)}
+              aria-label="Filter by service type"
+              className="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-2 py-1.5 bg-background border border-border-custom rounded-lg text-xs font-medium text-text-primary cursor-pointer hover:border-text-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-custom/30"
+            >
+              <option value="all">Service</option>
+              {uniqueServices.map(srv => (
+                <option key={srv} value={srv}>{srv}</option>
+              ))}
+            </select>
+
+            <button
+              onClick={handleExportCSV}
+              aria-label="Export selected leads as CSV"
+              className="w-full sm:w-auto min-h-[44px] sm:min-h-0 flex items-center justify-center gap-1.5 px-2.5 py-1.5 border border-border-custom rounded-lg bg-background text-xs font-medium text-text-primary hover:bg-border-custom/60 transition-colors cursor-pointer shrink-0"
+            >
+              <Download className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Export CSV</span>
+            </button>
           </div>
-        </div>
-
-        {/* Dropdown Filters */}
-        <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-border-custom/50 text-xs">
-          <span className="text-text-secondary font-bold flex items-center space-x-1.5 shrink-0">
-            <SlidersHorizontal className="h-3.5 w-3.5" />
-            <span>Filters:</span>
-          </span>
-
-          <select
-            value={initialPriority}
-            onChange={(e) => handleFilterChange('priority', e.target.value)}
-            aria-label="Filter by priority"
-            className="px-2.5 py-1.5 bg-background border border-border-custom rounded-input font-medium cursor-pointer"
-          >
-            <option value="all">All Priorities</option>
-            <option value="LOW">Low</option>
-            <option value="MEDIUM">Medium</option>
-            <option value="HIGH">High</option>
-            <option value="CRITICAL">Critical</option>
-          </select>
-
-          <select
-            value={initialCity}
-            onChange={(e) => handleFilterChange('city', e.target.value)}
-            aria-label="Filter by city"
-            className="px-2.5 py-1.5 bg-background border border-border-custom rounded-input font-medium cursor-pointer"
-          >
-            <option value="all">All Cities</option>
-            {uniqueCities.map(city => (
-              <option key={city} value={city}>{city}</option>
-            ))}
-          </select>
-
-          <select
-            value={initialSource}
-            onChange={(e) => handleFilterChange('source', e.target.value)}
-            aria-label="Filter by source"
-            className="px-2.5 py-1.5 bg-background border border-border-custom rounded-input font-medium cursor-pointer"
-          >
-            <option value="all">All Sources</option>
-            {uniqueSources.map(src => (
-              <option key={src} value={src}>{src}</option>
-            ))}
-          </select>
-
-          <select
-            value={initialService}
-            onChange={(e) => handleFilterChange('service', e.target.value)}
-            aria-label="Filter by service type"
-            className="px-2.5 py-1.5 bg-background border border-border-custom rounded-input font-medium cursor-pointer"
-          >
-            <option value="all">All Services</option>
-            {uniqueServices.map(srv => (
-              <option key={srv} value={srv}>{srv}</option>
-            ))}
-          </select>
-
-          <button
-            onClick={handleExportCSV}
-            aria-label="Export selected leads as CSV"
-            className="flex items-center justify-center space-x-2 px-3 py-1.5 border border-border-custom rounded-button bg-background text-xs font-bold text-text-primary hover:bg-border-custom transition-colors ml-auto cursor-pointer"
-          >
-            <Download className="h-3.5 w-3.5" />
-            <span>Export CSV</span>
-          </button>
         </div>
       </div>
 
       {/* Results info */}
       {totalCount > 0 && (
-        <div className="flex items-center justify-between text-xs text-text-secondary font-medium px-1">
-          <span>Showing {startItem}–{endItem} of {totalCount} leads</span>
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1 text-xs text-text-secondary/70 font-medium px-1">
+          <span>{startItem}–{endItem} of {totalCount} leads</span>
           <span>Page {currentPage} of {totalPages}</span>
         </div>
       )}
 
       {/* Leads Table */}
       {processedLeads.length > 0 ? (
-        <div className="bg-surface rounded-card border border-border-custom shadow-sm overflow-hidden flex flex-col">
+        <div className="bg-surface rounded-card border border-border-custom shadow-sm card-hover overflow-hidden flex flex-col">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse" role="table" aria-label="Leads table">
               <thead>
-                <tr className="border-b border-border-custom bg-background/50 text-xs font-semibold text-text-secondary uppercase tracking-wider">
-                  <th className="px-6 py-4 w-12 text-center" scope="col">
+                <tr className="border-b border-border-custom bg-background/40 sticky top-0 z-10">
+                  <th className="px-5 py-3 w-10 text-center" scope="col">
                     <button
                       onClick={toggleSelectAllLeads}
                       aria-label={selectedLeadIds.length === processedLeads.length ? 'Deselect all leads' : 'Select all leads'}
-                      className="p-1 hover:bg-background rounded-button text-text-muted hover:text-primary-custom transition-colors cursor-pointer"
+                      className="p-1 rounded hover:bg-background text-text-muted hover:text-primary-custom transition-colors cursor-pointer"
                     >
                       {selectedLeadIds.length === processedLeads.length ? (
-                        <CheckSquare className="h-4 w-4 text-primary-custom" />
+                        <CheckSquare className="h-3.5 w-3.5 text-primary-custom" />
                       ) : (
-                        <Square className="h-4 w-4" />
+                        <Square className="h-3.5 w-3.5" />
                       )}
                     </button>
                   </th>
-                  <th className="px-6 py-4" scope="col">Customer</th>
-                  <th className="px-6 py-4" scope="col">Source</th>
-                  <th className="px-6 py-4" scope="col">Phone</th>
-                  <th className="px-6 py-4" scope="col">City</th>
-                  <th className="px-6 py-4" scope="col">Service</th>
-                  <th className="px-6 py-4" scope="col">Priority</th>
-                  <th className="px-6 py-4" scope="col">Lead Score</th>
-                  <th className="px-6 py-4" scope="col">Status</th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-text-secondary/70 uppercase tracking-wider" scope="col">Customer</th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-text-secondary/70 uppercase tracking-wider" scope="col">Source</th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-text-secondary/70 uppercase tracking-wider" scope="col">Phone</th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-text-secondary/70 uppercase tracking-wider" scope="col">City</th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-text-secondary/70 uppercase tracking-wider" scope="col">Service</th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-text-secondary/70 uppercase tracking-wider" scope="col">Priority</th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-text-secondary/70 uppercase tracking-wider" scope="col">Score</th>
+                  <th className="px-5 py-3 text-[11px] font-semibold text-text-secondary/70 uppercase tracking-wider" scope="col">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border-custom text-sm">
+              <tbody className="divide-y divide-border-custom/60">
                 {processedLeads.map((lead) => {
                   const isSelected = selectedLeadIds.includes(lead.id)
                   return (
                     <tr
                       key={lead.id}
                       onClick={() => handleRowClick(lead)}
-                      className={`hover:bg-background/80 transition-colors cursor-pointer group ${
-                        isSelected ? 'bg-primary-custom/[0.01]' : ''
+                      className={`hover:bg-background/40 transition-colors cursor-pointer group ${
+                        isSelected ? 'bg-primary-custom/[0.02]' : ''
                       }`}
                       role="row"
                     >
-                      <td className="px-6 py-4 w-12 text-center" onClick={(e) => e.stopPropagation()}>
+                      <td className="px-5 py-3.5 w-10 text-center" onClick={(e) => e.stopPropagation()}>
                         <button
                           onClick={() => toggleSelectLead(lead.id)}
                           aria-label={isSelected ? `Deselect ${lead.customer_name}` : `Select ${lead.customer_name}`}
-                          className="p-1 hover:bg-background rounded-button text-text-muted hover:text-primary-custom transition-colors cursor-pointer"
+                          className="p-1 rounded hover:bg-background text-text-muted hover:text-primary-custom transition-colors cursor-pointer"
                         >
-                          {isSelected ? <CheckSquare className="h-4 w-4 text-primary-custom" /> : <Square className="h-4 w-4" />}
+                          {isSelected ? <CheckSquare className="h-3.5 w-3.5 text-primary-custom" /> : <Square className="h-3.5 w-3.5" />}
                         </button>
                       </td>
-                      <td className="px-6 py-4 font-semibold text-text-primary group-hover:text-primary-custom transition-colors">
-                        {lead.customer_name}
-                      </td>
-                      <td className="px-6 py-4">
-                        <span className="inline-flex items-center space-x-1 text-xs font-medium text-text-secondary bg-background px-2.5 py-1 rounded-full border border-border-custom">
-                          <Globe className="h-3 w-3 text-text-muted" />
-                          <span>{lead.source || 'Website'}</span>
+                      <td className="px-5 py-3.5">
+                        <span className="text-sm font-medium text-text-primary group-hover:text-primary-custom transition-colors">
+                          {lead.customer_name}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-text-secondary">{lead.phone}</td>
-                      <td className="px-6 py-4 text-text-secondary">{lead.city}</td>
-                      <td className="px-6 py-4 text-text-secondary truncate max-w-32">{lead.service_type}</td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${getPriorityBadgeClass(lead.priority)}`}>
+                      <td className="px-5 py-3.5">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-text-secondary/80 bg-background/60 px-2.5 py-1 rounded-md border border-border-custom/60">
+                          <Globe className="h-3 w-3 text-text-muted" />
+                          {lead.source || 'Website'}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 text-sm text-text-secondary/80">{lead.phone}</td>
+                      <td className="px-5 py-3.5 text-sm text-text-secondary/80">{lead.city}</td>
+                      <td className="px-5 py-3.5 text-sm text-text-secondary/80 truncate max-w-28">{lead.service_type}</td>
+                      <td className="px-5 py-3.5">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border leading-none ${getPriorityBadgeClass(lead.priority)}`}>
                           {lead.priority}
                         </span>
                       </td>
-                      <td className="px-6 py-4 font-semibold">{lead.lead_score}</td>
-                      <td className="px-6 py-4">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusBadgeClass(lead.status)}`}>
+                      <td className="px-5 py-3.5">
+                        <span className="text-sm font-semibold text-text-primary">{lead.lead_score}</span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border leading-none ${getStatusBadgeClass(lead.status)}`}>
                           {lead.status}
                         </span>
                       </td>
@@ -478,18 +491,18 @@ export default function LeadsClient({
           </div>
 
           {/* Pagination Controls */}
-          <div className="px-6 py-4 border-t border-border-custom bg-background/30 flex items-center justify-between">
+          <div className="px-3 sm:px-5 py-3 border-t border-border-custom bg-background/30 flex items-center justify-between gap-1.5 sm:gap-2">
             <button
               onClick={() => goToPage(currentPage - 1)}
               disabled={currentPage <= 1}
               aria-label="Previous page"
-              className="flex items-center space-x-1 px-3 py-1.5 border border-border-custom rounded-button text-xs font-semibold text-text-secondary hover:bg-background disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+              className="flex items-center gap-1 px-2 sm:px-3 py-1.5 border border-border-custom rounded-lg text-xs font-medium text-text-secondary hover:bg-background disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors shrink-0"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
-              <span>Previous</span>
+              <span className="hidden sm:inline">Previous</span>
             </button>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-0.5 sm:gap-1 min-w-0">
               {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
                 let pageNum: number
                 if (totalPages <= 7) {
@@ -501,16 +514,19 @@ export default function LeadsClient({
                 } else {
                   pageNum = currentPage - 3 + i
                 }
+                const isFirstOrLast = pageNum === 1 || pageNum === totalPages
+                const isNearCurrent = Math.abs(pageNum - currentPage) <= 1
+                const showOnMobile = isFirstOrLast || isNearCurrent
                 return (
                   <button
                     key={pageNum}
                     onClick={() => goToPage(pageNum)}
                     aria-label={`Page ${pageNum}`}
                     aria-current={pageNum === currentPage ? 'page' : undefined}
-                    className={`min-w-[32px] px-2 py-1.5 text-xs font-semibold rounded-button transition-colors cursor-pointer ${
+                    className={`${showOnMobile ? 'inline-flex' : 'hidden sm:inline-flex'} min-w-[26px] sm:min-w-[30px] px-1 sm:px-2 py-1.5 text-xs font-medium rounded-lg transition-colors cursor-pointer items-center justify-center shrink-0 ${
                       pageNum === currentPage
-                        ? 'bg-primary-custom text-white'
-                        : 'text-text-secondary hover:bg-background border border-border-custom'
+                        ? 'bg-primary-custom/10 text-primary-custom font-semibold'
+                        : 'text-text-secondary hover:bg-background'
                     }`}
                   >
                     {pageNum}
@@ -523,35 +539,35 @@ export default function LeadsClient({
               onClick={() => goToPage(currentPage + 1)}
               disabled={currentPage >= totalPages}
               aria-label="Next page"
-              className="flex items-center space-x-1 px-3 py-1.5 border border-border-custom rounded-button text-xs font-semibold text-text-secondary hover:bg-background disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+              className="flex items-center gap-1 px-2 sm:px-3 py-1.5 border border-border-custom rounded-lg text-xs font-medium text-text-secondary hover:bg-background disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer transition-colors shrink-0"
             >
-              <span>Next</span>
+              <span className="hidden sm:inline">Next</span>
               <ChevronRight className="h-3.5 w-3.5" />
             </button>
           </div>
         </div>
       ) : (
         /* Empty State */
-        <div className="bg-surface rounded-card border border-border-custom shadow-sm p-12 text-center flex flex-col items-center justify-center space-y-3 py-16">
-          <div className="h-12 w-12 rounded-full bg-border-custom/30 flex items-center justify-center text-text-secondary">
+        <div className="bg-surface rounded-card border border-border-custom shadow-sm flex flex-col items-center justify-center py-16 px-8 text-center">
+          <div className="h-12 w-12 rounded-xl border border-border-custom/50 flex items-center justify-center text-text-muted mb-4">
             <FolderOpen className="h-6 w-6" />
           </div>
-          <h3 className="text-base font-bold text-text-primary">
+          <h3 className="text-sm font-semibold text-text-primary mb-1">
             {initialSearch || initialPriority !== 'all' || initialCity !== 'all' || initialSource !== 'all' || initialService !== 'all'
-              ? 'No Leads Match Your Filters'
-              : 'No Leads Ingested'}
+              ? 'No leads match your filters'
+              : 'No leads ingested'}
           </h3>
-          <p className="text-xs text-text-secondary max-w-sm leading-relaxed">
+          <p className="text-xs text-text-secondary/70 max-w-sm leading-relaxed mb-4">
             {(initialSearch || initialPriority !== 'all' || initialCity !== 'all' || initialSource !== 'all' || initialService !== 'all')
-              ? 'Try adjusting your search terms or clearing filters.'
-              : 'Leads will appear here once they are received from the ingestion workflow.'}
+              ? 'Try adjusting your search terms or clearing the active filters.'
+              : 'Leads will appear here once received from the ingestion workflow.'}
           </p>
           {(initialSearch || initialPriority !== 'all' || initialCity !== 'all' || initialSource !== 'all' || initialService !== 'all') && (
             <button
               onClick={() => router.push('/leads')}
-              className="px-4 py-2 bg-primary-custom hover:bg-primary-hover text-xs font-semibold text-white rounded-button transition-colors cursor-pointer"
+              className="px-4 py-2 bg-primary-custom hover:bg-primary-hover text-xs font-medium text-white rounded-lg transition-colors cursor-pointer"
             >
-              Clear All Filters
+              Clear Filters
             </button>
           )}
         </div>
@@ -559,77 +575,80 @@ export default function LeadsClient({
 
       {/* CRM Bulk Operations Floating Toolbar */}
       {selectedLeadIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-surface border-2 border-primary-custom rounded-card shadow-2xl p-4 z-40 flex items-center space-x-4 animate-fade-in text-sm font-semibold max-w-lg w-full justify-between">
-          <div className="flex items-center space-x-2">
-            <ShieldAlert className="h-5 w-5 text-primary-custom" />
-            <span>{selectedLeadIds.length} Selected</span>
+        <div className="fixed bottom-0 left-0 right-0 sm:bottom-6 sm:left-1/2 sm:-translate-x-1/2 bg-surface border-t sm:border border-border-custom shadow-xl sm:rounded-xl p-3 z-40 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 animate-fade-in text-sm sm:max-w-lg w-full">
+          <div className="flex items-center justify-between sm:justify-start gap-2 px-1">
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="h-4 w-4 text-primary-custom" />
+              <span className="text-xs font-medium text-text-secondary">{selectedLeadIds.length} selected</span>
+            </div>
+            {bulkLoading && <Loader2 className="animate-spin h-4 w-4 text-primary-custom ml-auto" />}
           </div>
 
-          <div className="flex items-center space-x-2">
-            {bulkLoading ? (
-              <Loader2 className="animate-spin h-5 w-5 text-primary-custom" />
-            ) : (
-              <>
-                <button
-                  onClick={() => handleBulkStatusChange('CONTACTED')}
-                  className="px-2.5 py-1.5 bg-warning-custom/10 text-warning-custom border border-warning-custom/25 rounded-button text-xs font-bold hover:bg-warning-custom/20 cursor-pointer"
-                  aria-label="Mark selected as contacted"
-                >
-                  Contacted
-                </button>
-                <button
-                  onClick={() => handleBulkStatusChange('COMPLETED')}
-                  className="px-2.5 py-1.5 bg-success-custom/10 text-success-custom border border-success-custom/25 rounded-button text-xs font-bold hover:bg-success-custom/20 cursor-pointer"
-                  aria-label="Mark selected as completed"
-                >
-                  Complete
-                </button>
-                <button
-                  onClick={() => handleBulkStatusChange('LOST')}
-                  className="px-2.5 py-1.5 bg-text-secondary/10 text-text-secondary border border-border-custom rounded-button text-xs font-bold hover:bg-background cursor-pointer"
-                  aria-label="Mark selected as lost"
-                >
-                  Lost
-                </button>
-                <button
-                  onClick={handleBulkDelete}
-                  className="p-1.5 bg-danger-custom/10 text-danger-custom border border-danger-custom/25 rounded-button hover:bg-danger-custom/20 cursor-pointer"
-                  aria-label="Delete selected leads"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </>
-            )}
-          </div>
+          {!bulkLoading && (
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => handleBulkStatusChange('CONTACTED')}
+                className="flex-1 sm:flex-none px-2.5 py-2 sm:py-1.5 bg-warning-custom/8 text-warning-custom rounded-lg text-xs font-semibold hover:bg-warning-custom/15 transition-colors cursor-pointer text-center"
+                aria-label="Mark selected as contacted"
+              >
+                Contacted
+              </button>
+              <button
+                onClick={() => handleBulkStatusChange('COMPLETED')}
+                className="flex-1 sm:flex-none px-2.5 py-2 sm:py-1.5 bg-success-custom/8 text-success-custom rounded-lg text-xs font-semibold hover:bg-success-custom/15 transition-colors cursor-pointer text-center"
+                aria-label="Mark selected as completed"
+              >
+                Complete
+              </button>
+              <button
+                onClick={() => handleBulkStatusChange('LOST')}
+                className="flex-1 sm:flex-none px-2.5 py-2 sm:py-1.5 bg-text-secondary/8 text-text-secondary rounded-lg text-xs font-semibold hover:bg-text-secondary/15 transition-colors cursor-pointer text-center"
+                aria-label="Mark selected as lost"
+              >
+                Lost
+              </button>
+              <button
+                onClick={handleBulkDelete}
+                className="p-2 sm:p-1.5 bg-danger-custom/8 text-danger-custom rounded-lg hover:bg-danger-custom/15 transition-colors cursor-pointer"
+                aria-label="Delete selected leads"
+              >
+                <Trash2 className="h-4 w-4 sm:h-3.5 sm:w-3.5" />
+              </button>
+            </div>
+          )}
         </div>
       )}
 
       {/* Confirmation Dialog for Bulk Delete */}
       {confirmDeleteState.visible && (
-        <div className="fixed inset-0 z-[60] overflow-hidden flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-xs" onClick={() => setConfirmDeleteState(prev => ({ ...prev, visible: false }))} />
-          <div className="relative bg-surface w-full max-w-sm rounded-card border border-border-custom p-6 shadow-2xl space-y-4 animate-fade-in text-sm text-text-primary">
-            <div className="flex items-center space-x-3 pb-3 border-b border-border-custom">
-              <div className="h-8 w-8 rounded-full bg-warning-custom/10 flex items-center justify-center text-warning-custom">
-                <AlertTriangle className="h-4 w-4" />
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setConfirmDeleteState(prev => ({ ...prev, visible: false }))} />
+          <div className="relative bg-surface w-full max-w-sm rounded-card border border-border-custom p-5 shadow-2xl animate-fade-in">
+            <div className="flex items-start gap-3 pb-4 border-b border-border-custom mb-4">
+              <div className="h-8 w-8 rounded-lg bg-warning-custom/10 flex items-center justify-center shrink-0">
+                <AlertTriangle className="h-4 w-4 text-warning-custom" />
               </div>
-              <h3 className="font-bold text-sm">Delete Leads</h3>
+              <div>
+                <h3 className="text-sm font-semibold text-text-primary">Delete Leads</h3>
+                <p className="text-xs text-text-secondary/70 mt-0.5">This action cannot be undone.</p>
+              </div>
             </div>
-            <p className="text-xs text-text-secondary leading-relaxed">
-              Are you sure you want to delete {confirmDeleteState.count} selected leads? This action cannot be undone.
+            <p className="text-xs text-text-secondary/80 leading-relaxed mb-4">
+              Are you sure you want to delete <strong className="text-text-primary">{confirmDeleteState.count}</strong> selected leads?
             </p>
-            <div className="flex justify-end space-x-2 pt-2">
+            <div className="flex justify-end gap-2">
               <button
                 onClick={() => setConfirmDeleteState(prev => ({ ...prev, visible: false }))}
-                className="px-4 py-2 border border-border-custom hover:bg-background rounded-button text-xs font-semibold cursor-pointer"
+                className="px-4 py-2 border border-border-custom hover:bg-background rounded-lg text-xs font-medium cursor-pointer transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={executeBulkDelete}
-                className="px-4 py-2 bg-danger-custom text-white hover:bg-danger-custom/80 rounded-button text-xs font-semibold cursor-pointer flex items-center space-x-1"
+                className="px-4 py-2 bg-danger-custom text-white hover:bg-danger-custom/90 rounded-lg text-xs font-medium cursor-pointer transition-colors flex items-center gap-1.5"
               >
-                <span>Delete</span>
+                <Trash2 className="h-3 w-3" />
+                Delete
               </button>
             </div>
           </div>

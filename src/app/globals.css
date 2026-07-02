@@ -67,13 +67,17 @@
 }
 
 @layer base {
+  html {
+    overflow-x: hidden;
+  }
+
   body {
     background-color: var(--background);
     color: var(--text-primary);
     font-family: 'Geist', 'Inter', sans-serif;
     overflow-x: hidden;
   }
-  
+
   /* Focus States matching design guidelines */
   input:focus, textarea:focus, select:focus {
     outline: none;
@@ -91,6 +95,24 @@
   }
 }
 
+/* Sidebar-specific: slides from left (-100% → 0) */
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+
+/* Sidebar-specific: closes to left (0 → -100%) */
+@keyframes slideOutLeft {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-100%); }
+}
+
+/* Drawer close: slides out to right (0 → 100%) */
+@keyframes slideOutRight {
+  from { transform: translateX(0); }
+  to   { transform: translateX(100%); }
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -100,10 +122,178 @@
   }
 }
 
+/* Section stagger: fade + translate(8px → 0) */
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Dialog close: scale 100% → 95% + fade */
+@keyframes dialogOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
 .animate-slide-in {
-  animation: slideIn 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: slideIn 300ms ease-out forwards;
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 250ms ease-out forwards;
+}
+
+.animate-slide-out-left {
+  animation: slideOutLeft 250ms ease-in forwards;
+}
+
+.animate-slide-out {
+  animation: slideOutRight 280ms ease-in forwards;
 }
 
 .animate-fade-in {
   animation: fadeIn 200ms ease-out forwards;
+}
+
+.stagger-section {
+  opacity: 0;
+  animation: fadeUp 0.35s ease-out both;
+}
+
+.animate-dialog-out {
+  animation: dialogOut 200ms ease-in forwards;
+}
+
+/* Accessibility: disable non-essential animations when user prefers reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* =========================================================
+   SPRINT 6B-2 — Global Micro-Interaction Utilities
+   ========================================================= */
+
+/* Button press: scale 100% → 98%, duration 100ms, GPU-only */
+.btn-press {
+  transition: transform 100ms ease, opacity 150ms ease, background-color 150ms ease,
+              border-color 150ms ease, box-shadow 150ms ease;
+}
+.btn-press:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Global: apply press feedback to every button (GPU-only, respects prefers-reduced-motion) */
+button:active:not(:disabled) {
+  transform: scale(0.98);
+  transition: transform 100ms ease;
+}
+
+/* Smooth disabled state transition */
+.disabled-smooth {
+  transition: opacity 200ms ease, transform 200ms ease;
+}
+
+/* Card hover: shadow-sm → shadow-md + lift, duration 200ms, GPU-only, desktop only */
+.card-hover {
+  transition: transform 200ms ease, box-shadow 200ms ease;
+  will-change: transform;
+}
+@media (hover: hover) and (pointer: fine) {
+  .card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  }
+}
+
+/* Table row selection smooth transition */
+.row-selected {
+  transition: background-color 150ms ease;
+}
+
+/* Empty state: fade-up on mount */
+.empty-enter {
+  opacity: 0;
+  animation: fadeUp 250ms ease-out forwards;
+}
+.empty-enter > *:nth-child(1) { animation-delay: 0ms; }
+.empty-enter > *:nth-child(2) { animation-delay: 50ms; }
+.empty-enter > *:nth-child(3) { animation-delay: 100ms; }
+.empty-enter > *:nth-child(4) { animation-delay: 150ms; }
+
+/* Toast: slide from top-right with opacity */
+.toast-enter {
+  animation: toastIn 200ms ease-out forwards;
+}
+.toast-exit {
+  animation: toastOut 200ms ease-in forwards;
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes toastOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+}
+
+/* Scrollbar styling */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: var(--border);
+  border-radius: 9999px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: var(--muted);
+}
+
+/* Selection styling to match brand */
+::selection {
+  background-color: rgba(37, 99, 235, 0.15);
+  color: var(--text-primary);
+}
+
+.dark ::selection {
+  background-color: rgba(59, 130, 246, 0.25);
+  color: var(--text-primary);
 }
