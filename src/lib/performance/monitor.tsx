@@ -49,7 +49,8 @@ class PerformanceMonitor {
       const fidObserver = new PerformanceObserver((entryList) => {
         const entries = entryList.getEntries();
         entries.forEach((entry) => {
-          this.recordMetric('fid', entry.processingStart - entry.startTime, 'ms');
+          const fidEntry = entry as PerformanceEntry & { processingStart: number }
+          this.recordMetric('fid', fidEntry.processingStart - fidEntry.startTime, 'ms');
         });
       });
 
@@ -59,8 +60,9 @@ class PerformanceMonitor {
       const clsObserver = new PerformanceObserver((entryList) => {
         const entries = entryList.getEntries();
         entries.forEach((entry) => {
-          if (!entry.hadRecentInput) {
-            this.recordMetric('cls', entry.value, 'score');
+          const clsEntry = entry as PerformanceEntry & { hadRecentInput?: boolean; value?: number }
+          if (!clsEntry.hadRecentInput) {
+            this.recordMetric('cls', clsEntry.value ?? 0, 'score');
           }
         });
       });

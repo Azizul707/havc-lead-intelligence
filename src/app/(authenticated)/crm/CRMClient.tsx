@@ -332,7 +332,7 @@ export default function CRMClient({ initialLeads }: CRMClientProps) {
             <select
               value={priorityFilter}
               onChange={(e) => setPriorityFilter(e.target.value)}
-              className="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-2.5 py-1.5 bg-background border border-border-custom rounded-lg text-xs font-medium text-text-primary cursor-pointer hover:border-text-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-custom/30"
+              className="w-full sm:w-auto min-h-11 sm:min-h-0 px-2.5 py-1.5 bg-background border border-border-custom rounded-lg text-xs font-medium text-text-primary cursor-pointer hover:border-text-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-custom/30"
             >
               <option value="all">All Priorities</option>
               <option value="LOW">Low</option>
@@ -344,7 +344,7 @@ export default function CRMClient({ initialLeads }: CRMClientProps) {
             <select
               value={cityFilter}
               onChange={(e) => setCityFilter(e.target.value)}
-              className="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-2.5 py-1.5 bg-background border border-border-custom rounded-lg text-xs font-medium text-text-primary cursor-pointer hover:border-text-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-custom/30"
+              className="w-full sm:w-auto min-h-11 sm:min-h-0 px-2.5 py-1.5 bg-background border border-border-custom rounded-lg text-xs font-medium text-text-primary cursor-pointer hover:border-text-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-custom/30"
             >
               <option value="all">All Cities</option>
               {uniqueCities.map(city => (
@@ -355,7 +355,7 @@ export default function CRMClient({ initialLeads }: CRMClientProps) {
             <select
               value={sourceFilter}
               onChange={(e) => setSourceFilter(e.target.value)}
-              className="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-2.5 py-1.5 bg-background border border-border-custom rounded-lg text-xs font-medium text-text-primary cursor-pointer hover:border-text-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-custom/30"
+              className="w-full sm:w-auto min-h-11 sm:min-h-0 px-2.5 py-1.5 bg-background border border-border-custom rounded-lg text-xs font-medium text-text-primary cursor-pointer hover:border-text-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-custom/30"
             >
               <option value="all">All Sources</option>
               {uniqueSources.map(src => (
@@ -366,7 +366,7 @@ export default function CRMClient({ initialLeads }: CRMClientProps) {
             <select
               value={serviceFilter}
               onChange={(e) => setServiceFilter(e.target.value)}
-              className="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-2.5 py-1.5 bg-background border border-border-custom rounded-lg text-xs font-medium text-text-primary cursor-pointer hover:border-text-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-custom/30"
+              className="w-full sm:w-auto min-h-11 sm:min-h-0 px-2.5 py-1.5 bg-background border border-border-custom rounded-lg text-xs font-medium text-text-primary cursor-pointer hover:border-text-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-custom/30"
             >
               <option value="all">All Services</option>
               {uniqueServices.map(srv => (

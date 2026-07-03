@@ -340,7 +340,7 @@ export default function LeadsClient({
               value={initialPriority}
               onChange={(e) => handleFilterChange('priority', e.target.value)}
               aria-label="Filter by priority"
-              className="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-2 py-1.5 bg-background border border-border-custom rounded-lg text-xs font-medium text-text-primary cursor-pointer hover:border-text-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-custom/30"
+              className="w-full sm:w-auto min-h-11 sm:min-h-0 px-2 py-1.5 bg-background border border-border-custom rounded-lg text-xs font-medium text-text-primary cursor-pointer hover:border-text-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-custom/30"
             >
               <option value="all">Priority</option>
               <option value="LOW">Low</option>
@@ -353,7 +353,7 @@ export default function LeadsClient({
               value={initialCity}
               onChange={(e) => handleFilterChange('city', e.target.value)}
               aria-label="Filter by city"
-              className="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-2 py-1.5 bg-background border border-border-custom rounded-lg text-xs font-medium text-text-primary cursor-pointer hover:border-text-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-custom/30"
+              className="w-full sm:w-auto min-h-11 sm:min-h-0 px-2 py-1.5 bg-background border border-border-custom rounded-lg text-xs font-medium text-text-primary cursor-pointer hover:border-text-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-custom/30"
             >
               <option value="all">City</option>
               {uniqueCities.map(city => (
@@ -365,7 +365,7 @@ export default function LeadsClient({
               value={initialSource}
               onChange={(e) => handleFilterChange('source', e.target.value)}
               aria-label="Filter by source"
-              className="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-2 py-1.5 bg-background border border-border-custom rounded-lg text-xs font-medium text-text-primary cursor-pointer hover:border-text-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-custom/30"
+              className="w-full sm:w-auto min-h-11 sm:min-h-0 px-2 py-1.5 bg-background border border-border-custom rounded-lg text-xs font-medium text-text-primary cursor-pointer hover:border-text-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-custom/30"
             >
               <option value="all">Source</option>
               {uniqueSources.map(src => (
@@ -377,7 +377,7 @@ export default function LeadsClient({
               value={initialService}
               onChange={(e) => handleFilterChange('service', e.target.value)}
               aria-label="Filter by service type"
-              className="w-full sm:w-auto min-h-[44px] sm:min-h-0 px-2 py-1.5 bg-background border border-border-custom rounded-lg text-xs font-medium text-text-primary cursor-pointer hover:border-text-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-custom/30"
+              className="w-full sm:w-auto min-h-11 sm:min-h-0 px-2 py-1.5 bg-background border border-border-custom rounded-lg text-xs font-medium text-text-primary cursor-pointer hover:border-text-muted transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary-custom/30"
             >
               <option value="all">Service</option>
               {uniqueServices.map(srv => (
@@ -388,7 +388,7 @@ export default function LeadsClient({
             <button
               onClick={handleExportCSV}
               aria-label="Export selected leads as CSV"
-              className="w-full sm:w-auto min-h-[44px] sm:min-h-0 flex items-center justify-center gap-1.5 px-2.5 py-1.5 border border-border-custom rounded-lg bg-background text-xs font-medium text-text-primary hover:bg-border-custom/60 transition-colors cursor-pointer shrink-0"
+              className="w-full sm:w-auto min-h-11 sm:min-h-0 flex items-center justify-center gap-1.5 px-2.5 py-1.5 border border-border-custom rounded-lg bg-background text-xs font-medium text-text-primary hover:bg-border-custom/60 transition-colors cursor-pointer shrink-0"
             >
               <Download className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Export CSV</span>

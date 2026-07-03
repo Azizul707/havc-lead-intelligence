@@ -1,7 +1,7 @@
-import { performanceMonitor, PerformanceDashboard } from './monitor';
+import { performanceMonitor, PerformanceDashboard, usePerformanceMonitor } from './monitor';
 
 // Export performance utilities
-export { performanceMonitor, PerformanceDashboard };
+export { performanceMonitor, PerformanceDashboard, usePerformanceMonitor };
 
 // Performance optimization utilities
 export function debounce<T extends (...args: any[]) => any>(
@@ -126,22 +126,22 @@ export class MemoryManager {
 // Bundle analysis helper (for development)
 export function analyzeBundle() {
   if (process.env.NODE_ENV === 'development' && typeof window !== 'undefined') {
-    const resources = performance.getEntriesByType('resource');
-    const scripts = resources.filter(r => r.name.includes('.js'));
-    const styles = resources.filter(r => r.name.includes('.css'));
-    
-    console.group('[Bundle Analysis]');
+    const resources = performance.getEntriesByType('resource') as PerformanceResourceTiming[];
+    const scripts = resources.filter(r => r.name.includes('.js'))
+    const styles = resources.filter(r => r.name.includes('.css'))
+
+    console.group('[Bundle Analysis]')
     console.log('Scripts:', scripts.map(s => ({
       name: s.name.split('/').pop(),
       size: s.transferSize,
       duration: s.duration,
-    })));
+    })))
     console.log('Styles:', styles.map(s => ({
       name: s.name.split('/').pop(),
       size: s.transferSize,
       duration: s.duration,
-    })));
-    console.groupEnd();
+    })))
+    console.groupEnd()
   }
 }
 

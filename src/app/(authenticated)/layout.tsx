@@ -14,6 +14,13 @@ interface UserProfileCache {
   };
 }
 
+type UserProfile = {
+  fullName: string;
+  companyName: string;
+  email: string;
+  timestamp: number;
+};
+
 const userProfileCache: UserProfileCache = {};
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes cache TTL
 
@@ -35,13 +42,13 @@ export default async function AuthenticatedLayout({
   const cacheKey = user.id;
   const cachedProfile = userProfileCache[cacheKey];
   
-  let userProfile;
-  
+  let userProfile: UserProfile;
+
   if (cachedProfile && (Date.now() - cachedProfile.timestamp) < CACHE_TTL) {
     // Use cached profile
     userProfile = cachedProfile;
   } else {
-    // ২. profiles টেবিল থেকে কোম্পানির প্রোফাইল ডেটা রিড করা (as any ব্যবহার করে never টাইপ এরর দূর করা হলো)
+    // Fetch profile data from the profiles table
     const { data: profile } = await (supabase.from('profiles') as any)
       .select('full_name, company_name')
       .eq('id', user.id)
