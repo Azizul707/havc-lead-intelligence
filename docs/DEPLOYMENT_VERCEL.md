@@ -1,4 +1,4 @@
-# Vercel Deployment Guide — HVAC AI Lead Intelligence
+# Vercel Deployment Guide — AI Lead Scoring CRM
 
 **Version:** 1.1.0  
 **Estimated Time:** 20 minutes

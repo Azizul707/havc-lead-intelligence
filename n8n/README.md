@@ -1,4 +1,4 @@
-# n8n Workflow Package — HVAC AI Lead Intelligence
+# n8n Workflow Package — AI Lead Scoring CRM
 
 **Version:** 1.1.0  
 **Purpose:** Production-ready automation workflows for HVAC client deployments

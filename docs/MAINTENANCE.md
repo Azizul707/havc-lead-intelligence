@@ -1,4 +1,4 @@
-# Maintenance Guide — HVAC AI Lead Intelligence
+# Maintenance Guide — AI Lead Scoring CRM
 
 **Version:** 1.1.0  
 **Last Updated:** June 29, 2026

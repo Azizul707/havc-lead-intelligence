@@ -1,5 +1,5 @@
 -- =============================================================================
--- HVAC AI Lead Intelligence Platform - Master Database Installer
+-- AI Lead Scoring CRM - Master Database Installer
 -- Version: 1.1.0
 -- Target: PostgreSQL (Supabase)
 -- Instructions: Copy the ENTIRE contents of this file into Supabase SQL Editor
@@ -121,6 +121,17 @@ create table if not exists public.reminders (
     updated_at timestamptz default timezone('utc'::text, now()) not null
 );
 
+-- 9. Service Types Table (user-configurable appointment service types)
+create table if not exists public.service_types (
+    id uuid default gen_random_uuid() not null primary key,
+    user_id uuid references auth.users(id) on delete cascade not null,
+    name text not null,
+    display_order integer not null default 0,
+    is_active boolean not null default true,
+    created_at timestamptz default timezone('utc'::text, now()) not null,
+    updated_at timestamptz default timezone('utc'::text, now()) not null
+);
+
 -- ===========================================================================
 -- PART 3: INDEXES
 -- ===========================================================================
@@ -138,6 +149,9 @@ create index if not exists idx_appointments_lead_id on public.appointments(lead_
 create index if not exists idx_appointments_date on public.appointments(appointment_date);
 create index if not exists idx_reminders_lead_id on public.reminders(lead_id);
 create index if not exists idx_reminders_date on public.reminders(reminder_date);
+create index if not exists idx_service_types_user_id on public.service_types(user_id);
+create index if not exists idx_service_types_display_order on public.service_types(user_id, display_order);
+create unique index if not exists idx_service_types_user_name on public.service_types(user_id, lower(name));
 
 -- ===========================================================================
 -- PART 4: FUNCTIONS & TRIGGERS
@@ -212,6 +226,10 @@ create trigger trigger_update_reminders_updated_at
     before update on public.reminders
     for each row execute function public.handle_updated_at();
 
+create trigger trigger_update_service_types_updated_at
+    before update on public.service_types
+    for each row execute function public.handle_updated_at();
+
 create trigger trigger_log_lead_creation
     after insert on public.hvac_leads
     for each row execute function public.log_lead_creation_event();
@@ -231,6 +249,27 @@ alter table if exists public.lead_events enable row level security;
 alter table if exists public.lead_notes enable row level security;
 alter table if exists public.appointments enable row level security;
 alter table if exists public.reminders enable row level security;
+alter table if exists public.service_types enable row level security;
+
+-- Service Types Policies
+do $$ begin
+  if not exists (select 1 from pg_policies where policyname = 'Users can view own service types' and tablename = 'service_types') then
+    create policy "Users can view own service types" on public.service_types
+      for select using (auth.uid() = user_id);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'Users can insert own service types' and tablename = 'service_types') then
+    create policy "Users can insert own service types" on public.service_types
+      for insert with check (auth.uid() = user_id);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'Users can update own service types' and tablename = 'service_types') then
+    create policy "Users can update own service types" on public.service_types
+      for update using (auth.uid() = user_id);
+  end if;
+  if not exists (select 1 from pg_policies where policyname = 'Users can delete own service types' and tablename = 'service_types') then
+    create policy "Users can delete own service types" on public.service_types
+      for delete using (auth.uid() = user_id);
+  end if;
+end $$;
 
 -- Profiles Policies
 do $$ begin
@@ -515,4 +554,4 @@ values
 
 select 'Installation complete!' as status;
 select 'Schema version: 1.1.0' as version;
-select 'Database: HVAC AI Lead Intelligence Platform' as database;
+select 'Database: AI Lead Scoring CRM' as database;

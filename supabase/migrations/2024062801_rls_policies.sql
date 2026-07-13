@@ -8,6 +8,7 @@ ALTER TABLE public.lead_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.lead_notes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.appointments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reminders ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.service_types ENABLE ROW LEVEL SECURITY;
 
 -- 1. Profiles Table Policies
 -- Users can only read/update their own profile
@@ -76,7 +77,7 @@ CREATE POLICY "Users can delete own notes" ON public.lead_notes
 CREATE POLICY "Users can view appointments" ON public.appointments
     FOR SELECT USING (
         EXISTS (
-            SELECT 1 FROM public.hvac_leads 
+            SELECT 1 FROM public.hvac_leads
             WHERE hvac_leads.id = appointments.lead_id
         )
     );
@@ -85,7 +86,7 @@ CREATE POLICY "Users can view appointments" ON public.appointments
 CREATE POLICY "Users can create appointments" ON public.appointments
     FOR INSERT WITH CHECK (
         EXISTS (
-            SELECT 1 FROM public.hvac_leads 
+            SELECT 1 FROM public.hvac_leads
             WHERE hvac_leads.id = appointments.lead_id
         )
     );
@@ -94,7 +95,16 @@ CREATE POLICY "Users can create appointments" ON public.appointments
 CREATE POLICY "Users can update appointments" ON public.appointments
     FOR UPDATE USING (
         EXISTS (
-            SELECT 1 FROM public.hvac_leads 
+            SELECT 1 FROM public.hvac_leads
+            WHERE hvac_leads.id = appointments.lead_id
+        )
+    );
+
+-- Users can delete appointments for leads they can see
+CREATE POLICY "Users can delete appointments" ON public.appointments
+    FOR DELETE USING (
+        EXISTS (
+            SELECT 1 FROM public.hvac_leads
             WHERE hvac_leads.id = appointments.lead_id
         )
     );
@@ -104,7 +114,7 @@ CREATE POLICY "Users can update appointments" ON public.appointments
 CREATE POLICY "Users can view reminders" ON public.reminders
     FOR SELECT USING (
         EXISTS (
-            SELECT 1 FROM public.hvac_leads 
+            SELECT 1 FROM public.hvac_leads
             WHERE hvac_leads.id = reminders.lead_id
         )
     );
@@ -113,7 +123,7 @@ CREATE POLICY "Users can view reminders" ON public.reminders
 CREATE POLICY "Users can create reminders" ON public.reminders
     FOR INSERT WITH CHECK (
         EXISTS (
-            SELECT 1 FROM public.hvac_leads 
+            SELECT 1 FROM public.hvac_leads
             WHERE hvac_leads.id = reminders.lead_id
         )
     );
@@ -122,10 +132,23 @@ CREATE POLICY "Users can create reminders" ON public.reminders
 CREATE POLICY "Users can update reminders" ON public.reminders
     FOR UPDATE USING (
         EXISTS (
-            SELECT 1 FROM public.hvac_leads 
+            SELECT 1 FROM public.hvac_leads
             WHERE hvac_leads.id = reminders.lead_id
         )
     );
+
+-- Service Types Policies
+CREATE POLICY "Users can view own service types" ON public.service_types
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert own service types" ON public.service_types
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update own service types" ON public.service_types
+    FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete own service types" ON public.service_types
+    FOR DELETE USING (auth.uid() = user_id);
 
 -- Create indexes for performance
 CREATE INDEX idx_hvac_leads_owner_id ON public.hvac_leads(owner_id);
@@ -135,6 +158,11 @@ CREATE INDEX idx_lead_events_lead_id ON public.lead_events(lead_id);
 CREATE INDEX idx_lead_notes_lead_id ON public.lead_notes(lead_id);
 CREATE INDEX idx_appointments_lead_id ON public.appointments(lead_id);
 CREATE INDEX idx_reminders_lead_id ON public.reminders(lead_id);
+
+-- Create indexes for service_types
+CREATE INDEX idx_service_types_user_id ON public.service_types(user_id);
+CREATE INDEX idx_service_types_display_order ON public.service_types(user_id, display_order);
+CREATE UNIQUE INDEX idx_service_types_user_name ON public.service_types(user_id, lower(name));
 
 -- Add audit trigger for lead updates
 CREATE OR REPLACE FUNCTION public.log_lead_status_change()

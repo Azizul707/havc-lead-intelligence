@@ -294,7 +294,7 @@ export default function DashboardClient({
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-5 pb-5 border-b border-border-custom">
         <div className="space-y-0.5">
           <h1 className="text-xl font-bold tracking-tight text-text-primary">Dashboard</h1>
-          <p className="text-sm text-text-secondary/80">Real-time lead intelligence and routing overview.</p>
+          <p className="text-sm text-text-secondary/80">Real-time lead scoring and pipeline overview.</p>
         </div>
 
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full sm:w-auto">

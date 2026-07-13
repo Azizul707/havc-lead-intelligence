@@ -1,6 +1,6 @@
 # Webhook Configuration
 
-This document centralizes the webhook configuration for all n8n workflows used in the HVAC AI Lead Intelligence Platform.
+This document centralizes the webhook configuration for all n8n workflows used in the AI Lead Scoring CRM platform.
 
 ---
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // =============================================================================
-// HVAC AI Lead Intelligence — Interactive Setup Wizard
+// AI Lead Scoring CRM — Interactive Setup Wizard
 // Guides developers through first-time deployment configuration.
 // Generates .env.local, validates inputs, and shows next steps.
 // =============================================================================
@@ -43,9 +43,9 @@ function warn(text) {
 async function getProjectDetails() {
   header('Step 1: Project Details');
 
-  const projectName = await rl.question(`  ${BOLD}Project Name${RESET} (hvac-lead-intelligence): `) || 'hvac-lead-intelligence';
+  const projectName = await rl.question(`  ${BOLD}Project Name${RESET} (ai-lead-scoring-crm): `) || 'ai-lead-scoring-crm';
 
-  const companyName = await rl.question(`  ${BOLD}Company Name${RESET} (HVAC Lead Intelligence): `) || 'HVAC Lead Intelligence';
+  const companyName = await rl.question(`  ${BOLD}Company Name${RESET} (AI Lead Scoring CRM): `) || 'AI Lead Scoring CRM';
 
   const appUrl = await rl.question(`  ${BOLD}Application URL${RESET} (https://your-app.vercel.app): `) || 'https://your-app.vercel.app';
 
@@ -188,7 +188,7 @@ function generateEnvFile(project, supabase, openrouter, n8n, email) {
 async function main() {
   console.log(`${BOLD}${GREEN}
   ╔════════════════════════════════════════════════╗
-  ║   HVAC AI Lead Intelligence — Setup Wizard     ║
+  ║   AI Lead Scoring CRM — Setup Wizard           ║
   ║   Sprint 05.4 — Deployment Configuration       ║
   ╚════════════════════════════════════════════════╝${RESET}`);
   console.log(`\nThis wizard will guide you through configuring a new deployment.\n`);

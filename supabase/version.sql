@@ -1,5 +1,5 @@
 -- =============================================================================
--- HVAC AI Lead Intelligence Platform - Database Version Query
+-- AI Lead Scoring CRM - Database Version Query
 -- Version: 1.1.0
 -- Purpose: Check current schema version and installation history.
 -- =============================================================================

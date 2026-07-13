@@ -1,4 +1,4 @@
-# HVAC Lead Intelligence Platform — PRD
+# AI Lead Scoring CRM — PRD
 
 ## Overview
 

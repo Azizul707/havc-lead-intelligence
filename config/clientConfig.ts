@@ -30,7 +30,7 @@ export type ClientConfig = z.infer<typeof ClientConfigSchema>;
 
 // Default client configuration
 export const defaultClientConfig: ClientConfig = {
-  companyName: 'HVAC Lead Intelligence',
+  companyName: 'AI Lead Scoring CRM',
   timeZone: 'America/New_York',
   currency: 'USD',
   dateFormat: 'MM/DD/YYYY',
@@ -40,7 +40,7 @@ export const defaultClientConfig: ClientConfig = {
     end: '18:00',
   },
   contactInformation: {
-    email: 'contact@hvacleadintelligence.com',
+    email: 'contact@aileadscoringcrm.com',
     phone: '+1-800-555-1234',
     address: '123 Main Street, City, State ZIP',
   },

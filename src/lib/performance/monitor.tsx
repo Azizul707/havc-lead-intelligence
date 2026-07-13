@@ -1,4 +1,4 @@
-// Performance monitoring utilities for HVAC Lead Intelligence platform
+// Performance monitoring utilities for AI Lead Scoring CRM platform
 
 interface PerformanceMetric {
   name: string;

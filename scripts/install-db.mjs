@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // =============================================================================
-// HVAC AI Lead Intelligence — Database Install Helper
+// AI Lead Scoring CRM — Database Install Helper
 // Shows instructions for installing the database via Supabase SQL Editor.
 // =============================================================================
 
@@ -31,7 +31,7 @@ function step(num, text, detail) {
 console.log(`\n${BOLD}${GREEN}
   ╔════════════════════════════════════════════════╗
   ║       Database Installation Guide              ║
-  ║       HVAC AI Lead Intelligence                ║
+  ║       AI Lead Scoring CRM                      ║
   ╚════════════════════════════════════════════════╝${RESET}`);
 
 section('Prerequisites');

@@ -13,9 +13,7 @@ export const profileSchema = z.object({
 export const appointmentSchema = z.object({
   date: z.string().min(1, 'Appointment date is required'),
   time: z.string().min(1, 'Appointment time is required'),
-  type: z.enum(['Installation', 'Repair', 'Maintenance', 'Diagnostic'], {
-    message: 'Invalid visit type selection',
-  }),
+  type: z.string().min(1, 'Service type is required'),
   notes: z.string().trim().max(1000, 'Internal notes must not exceed 1000 characters').optional().or(z.literal('')),
 })
 
@@ -38,9 +36,7 @@ export const reminderSchema = z.object({
 export const appointmentUpdateSchema = z.object({
   date: z.string().min(1, 'Appointment date is required'),
   time: z.string().min(1, 'Appointment time is required'),
-  type: z.enum(['Installation', 'Repair', 'Maintenance', 'Diagnostic'], {
-    message: 'Invalid visit type selection',
-  }),
+  type: z.string().min(1, 'Service type is required'),
   notes: z.string().trim().max(1000, 'Internal notes must not exceed 1000 characters').optional().or(z.literal('')),
 })
 

@@ -1,5 +1,5 @@
 -- =============================================================================
--- HVAC AI Lead Intelligence Platform - Safe Database Reset Script
+-- AI Lead Scoring CRM - Safe Database Reset Script
 -- Version: 1.1.0
 -- Purpose: Removes demo data while preserving all schema, indexes, and RLS.
 -- Use this to reset the database for re-seeding or production go-live.

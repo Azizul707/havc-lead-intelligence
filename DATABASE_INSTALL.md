@@ -1,4 +1,4 @@
-# HVAC AI Lead Intelligence Platform — Database Installation Guide
+# AI Lead Scoring CRM — Database Installation Guide
 
 **Version:** 1.1.0  
 **Database:** PostgreSQL (Supabase)  
@@ -27,7 +27,7 @@ Estimated time: **Under 30 minutes**.
 1. Log in to the [Supabase Dashboard](https://supabase.com).
 2. Click **New Project**.
 3. Configure:
-   - **Name:** `hvac-lead-intelligence-client` (or your client name)
+   - **Name:** `ai-lead-scoring-crm-client` (or your client name)
    - **Database Password:** Use a strong password (min 16 chars, mix of uppercase, lowercase, numbers, symbols)
    - **Region:** Choose the region closest to your client's operational area
      - US East (North Virginia) — for US clients
@@ -53,7 +53,7 @@ The master installer (`supabase/install.sql`) contains everything in one file �
    ```
    Installation complete!
    Schema version: 1.1.0
-   Database: HVAC AI Lead Intelligence Platform
+   Database: AI Lead Scoring CRM
    ```
 
 ### What the Installer Does
@@ -264,4 +264,4 @@ Your database is now ready. The application will connect automatically when envi
 
 ---
 
-*Generated for HVAC AI Lead Intelligence Platform | Sprint 05.2 | June 2026*
+*Generated for AI Lead Scoring CRM | Sprint 05.2 | June 2026*

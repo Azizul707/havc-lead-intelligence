@@ -20,17 +20,17 @@ export type BrandingConfig = z.infer<typeof BrandingConfigSchema>;
 
 // Default branding configuration (can be overridden)
 export const defaultBrandingConfig: BrandingConfig = {
-  companyName: 'HVAC Lead Intelligence',
+  companyName: 'AI Lead Scoring CRM',
   companyLogo: 'https://example.com/logo.png',
-  companyEmail: 'info@hvacleadintelligence.com',
+  companyEmail: 'info@aileadscoringcrm.com',
   companyPhone: '+1-800-555-1234',
   companyAddress: '123 Main Street, City, State ZIP',
-  website: 'https://hvacleadintelligence.com',
+  website: 'https://aileadscoringcrm.com',
   primaryColor: '#2563eb',
   secondaryColor: '#10b981',
   accentColor: '#f59e0b',
   favicon: 'https://example.com/favicon.png',
-  applicationName: 'HVAC Lead Intelligence',
+  applicationName: 'AI Lead Scoring CRM',
 };
 
 // Validate and export configuration

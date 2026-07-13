@@ -1,4 +1,4 @@
-# Production Deployment Checklist — HVAC AI Lead Intelligence
+# Production Deployment Checklist — AI Lead Scoring CRM
 
 **Version:** 1.1.0  
 **Use this checklist before going live with a new client deployment.**

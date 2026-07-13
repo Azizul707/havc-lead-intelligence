@@ -14,19 +14,19 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: 'HVAC Lead Intelligence',
-    template: '%s | HVAC Lead Intelligence',
+    default: 'AI Lead Scoring CRM',
+    template: '%s | AI Lead Scoring CRM',
   },
-  description: 'Production-grade lead operations platform for HVAC companies. Manage the complete lead lifecycle from AI qualification to job completion.',
+  description: 'Automatically Score, Prioritize & Convert Every Customer Inquiry. An AI-powered CRM for HVAC and local service businesses.',
   openGraph: {
-    title: 'HVAC Lead Intelligence',
-    description: 'Production-grade lead operations platform for HVAC companies.',
+    title: 'AI Lead Scoring CRM',
+    description: 'Automatically score, prioritize, and manage every customer inquiry from one intelligent workspace. Built for HVAC and service businesses that need faster responses, better follow-ups, and complete visibility across the sales pipeline.',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'HVAC Lead Intelligence',
-    description: 'Production-grade lead operations platform for HVAC companies.',
+    title: 'AI Lead Scoring CRM',
+    description: 'Automatically score, prioritize, and manage every customer inquiry from one intelligent workspace. Built for HVAC and service businesses that need faster responses, better follow-ups, and complete visibility across the sales pipeline.',
   },
   icons: {
     icon: '/favicon.ico',

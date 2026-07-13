@@ -278,7 +278,7 @@ export default function CRMClient({ initialLeads }: CRMClientProps) {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div className="space-y-0.5">
             <h1 className="text-xl font-bold tracking-tight text-text-primary">CRM Board</h1>
-            <p className="text-sm text-text-secondary/80">Dispatcher kanban for lead status management.</p>
+            <p className="text-sm text-text-secondary/80">Dispatcher kanban for pipeline management.</p>
           </div>
         </div>
       </div>

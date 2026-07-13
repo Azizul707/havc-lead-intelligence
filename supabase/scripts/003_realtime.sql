@@ -1,5 +1,5 @@
 -- =============================================================================
--- HVAC AI Lead Intelligence Platform - Realtime Publication
+-- AI Lead Scoring CRM - Realtime Publication
 -- Version: 1.1.0
 -- Part 3: Supabase Realtime
 -- =============================================================================

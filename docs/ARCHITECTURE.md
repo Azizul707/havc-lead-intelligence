@@ -1,4 +1,4 @@
-# System Architecture — HVAC AI Lead Intelligence
+# System Architecture — AI Lead Scoring CRM
 
 **Version:** 1.1.0  
 **Last Updated:** June 29, 2026
@@ -7,7 +7,7 @@
 
 ## Overview
 
-The HVAC AI Lead Intelligence Platform is a production-grade SaaS application that receives HVAC leads from webhooks, stores them in Supabase, analyzes them with AI, and presents them in a professional dashboard.
+The AI Lead Scoring CRM platform is a production-grade SaaS application that receives HVAC leads from webhooks, stores them in Supabase, analyzes them with AI, and presents them in a professional dashboard.
 
 ```
 

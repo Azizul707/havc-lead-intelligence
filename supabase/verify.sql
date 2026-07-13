@@ -1,5 +1,5 @@
 -- =============================================================================
--- HVAC AI Lead Intelligence Platform - Database Verification Script
+-- AI Lead Scoring CRM - Database Verification Script
 -- Version: 1.1.0
 -- Purpose: Validate that the database installation completed successfully.
 -- Run this after install.sql to confirm everything is in order.

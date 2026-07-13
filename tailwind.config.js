@@ -8,7 +8,7 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        // Custom color palette for HVAC Lead Intelligence
+        // Custom color palette for AI Lead Scoring CRM
         primary: {
           custom: 'var(--primary-custom)',
           DEFAULT: 'var(--primary)',

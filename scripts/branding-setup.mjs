@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // =============================================================================
-// HVAC AI Lead Intelligence — Branding Setup Wizard
+// AI Lead Scoring CRM — Branding Setup Wizard
 // Configures company branding through the centralized config system.
 // Updates config/brandingConfig.ts with your client's information.
 // =============================================================================
@@ -47,13 +47,13 @@ function dim(text) {
 async function main() {
   console.log(`${BOLD}${GREEN}
   ╔════════════════════════════════════════════╗
-  ║        HVAC Branding Configuration         ║
+  ║   AI Lead Scoring CRM — Branding Setup     ║
   ║    Customize your client's application     ║
   ╚════════════════════════════════════════════╝${RESET}`);
 
   header('Company Information');
-  const companyName = await rl.question(`  ${bold('Company Name')} ${dim('(HVAC Lead Intelligence)')}: `) || 'HVAC Lead Intelligence';
-  const applicationName = await rl.question(`  ${bold('Application Name')} ${dim('(HVAC Lead Intelligence)')}: `) || 'HVAC Lead Intelligence';
+  const companyName = await rl.question(`  ${bold('Company Name')} ${dim('(AI Lead Scoring CRM)')}: `) || 'AI Lead Scoring CRM';
+  const applicationName = await rl.question(`  ${bold('Application Name')} ${dim('(AI Lead Scoring CRM)')}: `) || 'AI Lead Scoring CRM';
   const website = await rl.question(`  ${bold('Website URL')} ${dim('(https://example.com)')}: `) || 'https://example.com';
 
   header('Contact Information');

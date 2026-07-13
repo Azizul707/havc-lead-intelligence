@@ -1,4 +1,4 @@
-# Performance Optimization Guide for HVAC Lead Intelligence
+# Performance Optimization Guide for AI Lead Scoring CRM
 
 ## Current Performance Issues Identified
 

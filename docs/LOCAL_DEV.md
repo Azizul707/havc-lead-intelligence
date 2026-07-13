@@ -1,4 +1,4 @@
-# Local Development Guide — HVAC AI Lead Intelligence
+# Local Development Guide — AI Lead Scoring CRM
 
 **Version:** 1.1.0  
 **Estimated Setup Time:** 15 minutes
@@ -19,8 +19,8 @@
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/your-org/hvac-lead-intelligence.git
-cd hvac-lead-intelligence
+git clone https://github.com/your-org/ai-lead-scoring-crm.git
+cd ai-lead-scoring-crm
 
 # 2. Install dependencies
 npm install
@@ -43,7 +43,7 @@ open http://localhost:3000
 
 ```bash
 git clone <repository-url>
-cd hvac-lead-intelligence
+cd ai-lead-scoring-crm
 npm install
 ```
 

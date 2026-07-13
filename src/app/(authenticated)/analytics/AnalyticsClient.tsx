@@ -76,7 +76,7 @@ export default function AnalyticsClient({
       <div className="space-y-5">
         <div className="pb-5 border-b border-border-custom">
           <h1 className="text-xl font-bold tracking-tight text-text-primary">Analytics</h1>
-          <p className="text-sm text-text-secondary/80 mt-0.5">Executive-level lead intelligence and metrics.</p>
+          <p className="text-sm text-text-secondary/80 mt-0.5">Executive-level lead analytics and metrics.</p>
         </div>
         <div className="bg-surface rounded-card border border-border-custom shadow-sm flex flex-col items-center justify-center py-16 px-8 text-center">
           <div className="h-12 w-12 rounded-xl border border-border-custom/50 flex items-center justify-center text-text-muted mb-4">
@@ -95,7 +95,7 @@ export default function AnalyticsClient({
     <div className="space-y-5">
       <div className="pb-5 border-b border-border-custom">
         <h1 className="text-xl font-bold tracking-tight text-text-primary">Analytics</h1>
-        <p className="text-sm text-text-secondary/80 mt-0.5">Executive-level lead intelligence and metrics.</p>
+        <p className="text-sm text-text-secondary/80 mt-0.5">Executive-level lead analytics and metrics.</p>
       </div>
 
       {/* KPI Summary Cards */}

@@ -1,8 +1,8 @@
-# HVAC AI Lead Intelligence Platform
+# AI Lead Scoring CRM
 
-**Production-grade SaaS platform for HVAC companies in the United States, Canada, and Australia.**
+**Production-grade AI-powered CRM for HVAC and local service businesses in the United States, Canada, and Australia.**
 
-Receive HVAC leads from n8n, store them in Supabase, display them in a professional dashboard, and provide AI-powered lead intelligence — all in a deployable template that can be set up for a new client in under one hour.
+Automatically score, prioritize, and manage every customer inquiry from one intelligent workspace. Receive leads from n8n, store them in Supabase, display them in a professional dashboard, and provide AI-powered lead qualification — all in a deployable template that can be set up for a new client in under one hour.
 
 ---
 
@@ -159,4 +159,4 @@ Private — Commercial use. All rights reserved.
 
 ---
 
-*Built with Next.js 16, Supabase, and n8n*
+*Built with Next.js 16, Supabase, and n8n — AI Lead Scoring CRM*

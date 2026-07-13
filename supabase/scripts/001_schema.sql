@@ -1,5 +1,5 @@
 -- =============================================================================
--- HVAC AI Lead Intelligence Platform - Schema Installer
+-- AI Lead Scoring CRM - Schema Installer
 -- Version: 1.1.0
 -- Part 1: Extensions, Tables, Functions, Triggers, Indexes
 -- =============================================================================
@@ -111,7 +111,18 @@ create table if not exists public.reminders (
     updated_at timestamptz default timezone('utc'::text, now()) not null
 );
 
--- 9. Performance Indexes
+-- 9. Service Types Table (user-configurable appointment service types)
+create table if not exists public.service_types (
+    id uuid default gen_random_uuid() not null primary key,
+    user_id uuid references auth.users(id) on delete cascade not null,
+    name text not null,
+    display_order integer not null default 0,
+    is_active boolean not null default true,
+    created_at timestamptz default timezone('utc'::text, now()) not null,
+    updated_at timestamptz default timezone('utc'::text, now()) not null
+);
+
+-- 10. Performance Indexes
 create index if not exists idx_leads_owner on public.hvac_leads(owner_id);
 create index if not exists idx_leads_priority on public.hvac_leads(priority);
 create index if not exists idx_leads_status on public.hvac_leads(status);
@@ -193,6 +204,10 @@ create trigger trigger_update_appointments_updated_at
 
 create trigger trigger_update_reminders_updated_at
     before update on public.reminders
+    for each row execute function public.handle_updated_at();
+
+create trigger trigger_update_service_types_updated_at
+    before update on public.service_types
     for each row execute function public.handle_updated_at();
 
 create trigger trigger_log_lead_creation

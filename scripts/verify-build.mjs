@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // =============================================================================
-// HVAC AI Lead Intelligence — Build Verification Script
+// AI Lead Scoring CRM — Build Verification Script
 // Runs lint, typecheck, and build sequentially. Reports results clearly.
 // =============================================================================
 
@@ -42,7 +42,7 @@ function runStep(name, command) {
 console.log(`\n${BOLD}${GREEN}
   ╔════════════════════════════════════════════════╗
   ║       Build Verification Suite                 ║
-  ║       HVAC AI Lead Intelligence                ║
+  ║       AI Lead Scoring CRM                      ║
   ╚════════════════════════════════════════════════╝${RESET}`);
 
 console.log(`\n${GRAY}Running: lint → typecheck → build${RESET}`);

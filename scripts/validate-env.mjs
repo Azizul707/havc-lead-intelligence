@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // =============================================================================
-// HVAC AI Lead Intelligence — Environment Validation CLI
+// AI Lead Scoring CRM — Environment Validation CLI
 // Checks required environment variables, validates format, and tests
 // connectivity where possible.
 // =============================================================================
@@ -79,7 +79,7 @@ function loadEnv() {
 // ──────────────────────────────────────────────
 async function main() {
   console.log(`\n${BOLD}Environment Validation${RESET}`);
-  console.log(`${GRAY}Checking configuration for HVAC AI Lead Intelligence${RESET}\n`);
+  console.log(`${GRAY}Checking configuration for AI Lead Scoring CRM${RESET}\n`);
 
   // 1. Environment file
   section('1. Environment File');

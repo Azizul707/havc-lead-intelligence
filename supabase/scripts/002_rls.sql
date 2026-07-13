@@ -1,5 +1,5 @@
 -- =============================================================================
--- HVAC AI Lead Intelligence Platform - RLS Policies
+-- AI Lead Scoring CRM - RLS Policies
 -- Version: 1.1.0
 -- Part 2: Row Level Security
 -- =============================================================================

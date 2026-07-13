@@ -1,6 +1,6 @@
 # Configuration Guide
 
-This directory contains the centralized configuration system for the HVAC Lead Intelligence Platform. All application settings, branding, environment variables, and feature flags are managed here to support easy client deployment and customization.
+This directory contains the centralized configuration system for the AI Lead Scoring CRM platform. All application settings, branding, environment variables, and feature flags are managed here to support easy client deployment and customization.
 
 ## Overview
 

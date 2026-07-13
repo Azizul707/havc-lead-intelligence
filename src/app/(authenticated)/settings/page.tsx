@@ -1,7 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { redirect } from 'next/navigation'
+'use server'
+
 import { createClient } from '../../../lib/supabase/server'
+import { redirect } from 'next/navigation'
 import SettingsClient from './SettingsClient'
+import { getServiceTypes } from './service-types.actions'
+import type { ServiceType } from './service-types.actions'
 
 export default async function SettingsPage() {
   const supabase = await createClient()
@@ -30,5 +34,11 @@ export default async function SettingsPage() {
     role: profile?.role || 'DISPATCHER'
   }
 
-  return <SettingsClient initialSettings={initialSettings} />
+  // Fetch service types for this user
+  const serviceTypesResult = await getServiceTypes()
+  const serviceTypes: ServiceType[] = serviceTypesResult.success && serviceTypesResult.data
+    ? serviceTypesResult.data
+    : []
+
+  return <SettingsClient initialSettings={initialSettings} serviceTypes={serviceTypes} />
 }

@@ -9,7 +9,7 @@ import {
   CheckCircle2, Loader2, FileText, Trash2, Calendar,
   Copy, Map, PlusCircle, Activity, BellRing, Pencil,
   AlertTriangle, XCircle, Eye, CalendarCheck,
-  ThumbsDown
+  ThumbsDown, AlertCircle
 } from 'lucide-react'
 import { createClient } from '../../lib/supabase/client'
 import { formatRelativeTime } from '../../lib/utils/time'
@@ -29,6 +29,7 @@ import {
   updateAppointment,
   updateLeadNote
 } from '../../app/(authenticated)/dashboard/actions'
+import { getServiceTypes } from '../../app/(authenticated)/settings/service-types.actions'
 
 interface Lead {
   id: string
@@ -116,6 +117,19 @@ export default function LeadDetailsDrawer({
   const [toastType, setToastType] = useState<'success' | 'error'>('success')
   const [toastExiting, setToastExiting] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+
+  // Service types for appointment type dropdown
+  interface ServiceTypeItem {
+    id: string
+    user_id: string
+    name: string
+    display_order: number
+    is_active: boolean
+    created_at: string
+    updated_at: string
+  }
+  const [serviceTypes, setServiceTypes] = useState<ServiceTypeItem[]>([])
+  const [serviceTypesLoading, setServiceTypesLoading] = useState(false)
 
   // Confirmation dialog state
   const [confirmDialog, setConfirmDialog] = useState<{
@@ -216,6 +230,19 @@ export default function LeadDetailsDrawer({
       setAppEditValue('notes', editAppointment.notes || '')
     }
   }, [editAppointment, setAppEditValue])
+
+  // Load service types for appointment dropdown
+  useEffect(() => {
+    const loadServiceTypes = async () => {
+      setServiceTypesLoading(true)
+      const result = await getServiceTypes()
+      if (result.success && result.data) {
+        setServiceTypes(result.data)
+      }
+      setServiceTypesLoading(false)
+    }
+    loadServiceTypes()
+  }, [])
 
   // Supabase Realtime subscriptions & Initial data fetches
   useEffect(() => {
@@ -1087,10 +1114,18 @@ export default function LeadDetailsDrawer({
                   {...registerApp('type')}
                   className="w-full px-3 py-2 bg-background border border-border-custom rounded-lg text-xs outline-none cursor-pointer focus:ring-2 focus:ring-primary-custom/15"
                 >
-                  <option value="Installation">Installation</option>
-                  <option value="Repair">Repair</option>
-                  <option value="Maintenance">Maintenance</option>
-                  <option value="Diagnostic">Diagnostic</option>
+                  {serviceTypesLoading ? (
+                    <option value="">Loading...</option>
+                  ) : serviceTypes.filter(st => st.is_active).length === 0 ? (
+                    <option value="">No service types available</option>
+                  ) : (
+                    [...serviceTypes]
+                      .filter(st => st.is_active)
+                      .sort((a, b) => a.display_order - b.display_order)
+                      .map(st => (
+                        <option key={st.id} value={st.name}>{st.name}</option>
+                      ))
+                  )}
                 </select>
                 {errorsApp.type && <p className="text-xs text-danger-custom font-medium mt-1">{errorsApp.type.message}</p>}
               </div>
@@ -1168,10 +1203,17 @@ export default function LeadDetailsDrawer({
                   {...registerAppEdit('type')}
                   className="w-full px-3 py-2 bg-background border border-border-custom rounded-lg text-xs outline-none cursor-pointer focus:ring-2 focus:ring-primary-custom/15"
                 >
-                  <option value="Installation">Installation</option>
-                  <option value="Repair">Repair</option>
-                  <option value="Maintenance">Maintenance</option>
-                  <option value="Diagnostic">Diagnostic</option>
+                  {serviceTypesLoading ? (
+                    <option value="">Loading...</option>
+                  ) : serviceTypes.length === 0 ? (
+                    <option value="">No service types available</option>
+                  ) : (
+                    [...serviceTypes]
+                      .sort((a, b) => a.display_order - b.display_order)
+                      .map(st => (
+                        <option key={st.id} value={st.name}>{st.name} {!st.is_active ? '(inactive)' : ''}</option>
+                      ))
+                  )}
                 </select>
                 {errorsAppEdit.type && <p className="text-xs text-danger-custom font-medium mt-1">{errorsAppEdit.type.message}</p>}
               </div>

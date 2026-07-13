@@ -14,11 +14,11 @@ Ignore outdated documentation unless asked to update it.
 
 ## Project
 
-HVAC AI Lead Intelligence Platform
+AI Lead Scoring CRM
 
-Production-grade SaaS platform built for HVAC companies in the United States, Canada, and Australia.
+Production-grade AI-powered CRM platform built for HVAC and local service businesses in the United States, Canada, and Australia.
 
-The application receives HVAC leads from n8n, stores them in Supabase, displays them in a professional dashboard, and provides AI-powered lead intelligence.
+The application receives HVAC leads from n8n, stores them in Supabase, displays them in a professional dashboard, and provides AI-powered lead scoring and qualification.
 
 This is NOT a demo project.
 
