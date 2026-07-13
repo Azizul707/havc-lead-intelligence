@@ -24,7 +24,7 @@ export async function getServiceTypes(): Promise<ServerResponse<ServiceType[]>> 
       throw new AppError('Unauthorized access. Please login.', 'UNAUTHORIZED')
     }
 
-    const { data: types, error } = await (supabase.from('service_types') as any)
+    const { data: types, error } = await supabase.from('service_types')
       .select('*')
       .eq('user_id', user.id)
       .order('display_order', { ascending: true })
@@ -52,7 +52,7 @@ export async function createServiceType(name: string): Promise<ServerResponse<Se
     }
 
     // Get current max display_order
-    const { data: existing } = await (supabase.from('service_types') as any)
+    const { data: existing } = await supabase.from('service_types')
       .select('display_order')
       .eq('user_id', user.id)
       .order('display_order', { ascending: false })
@@ -61,7 +61,7 @@ export async function createServiceType(name: string): Promise<ServerResponse<Se
 
     const nextOrder = existing ? existing.display_order + 1 : 0
 
-    const { data: newType, error } = await (supabase.from('service_types') as any)
+    const { data: newType, error } = await supabase.from('service_types')
       .insert({
         user_id: user.id,
         name: trimmedName,
@@ -102,7 +102,7 @@ export async function updateServiceType(id: string, updates: { name?: string; is
       }
 
       // Check for duplicate name among other types
-      const { data: existing } = await (supabase.from('service_types') as any)
+      const { data: existing } = await supabase.from('service_types')
         .select('id')
         .eq('user_id', user.id)
         .ilike('name', trimmedName)
@@ -114,7 +114,7 @@ export async function updateServiceType(id: string, updates: { name?: string; is
       }
     }
 
-    const { data: updated, error } = await (supabase.from('service_types') as any)
+    const { data: updated, error } = await supabase.from('service_types')
       .update(updates)
       .eq('id', id)
       .eq('user_id', user.id)
@@ -141,7 +141,7 @@ export async function deleteServiceType(id: string): Promise<ServerResponse> {
       throw new AppError('Unauthorized access. Please login.', 'UNAUTHORIZED')
     }
 
-    const { error } = await (supabase.from('service_types') as any)
+    const { error } = await supabase.from('service_types')
       .delete()
       .eq('id', id)
       .eq('user_id', user.id)
@@ -167,7 +167,7 @@ export async function reorderServiceTypes(orderedIds: string[]): Promise<ServerR
 
     // Update display_order for each item
     const updatePromises = orderedIds.map((id, index) =>
-      (supabase.from('service_types') as any)
+      supabase.from('service_types')
         .update({ display_order: index })
         .eq('id', id)
         .eq('user_id', user.id)

@@ -52,6 +52,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       hvac_leads: {
         Row: {
@@ -138,6 +139,7 @@ export interface Database {
           source_type?: string | null
           source_reference?: string | null
         }
+        Relationships: []
       }
       lead_events: {
         Row: {
@@ -167,6 +169,7 @@ export interface Database {
           created_by?: string | null
           created_at?: string
         }
+        Relationships: []
       }
       lead_notes: {
         Row: {
@@ -190,6 +193,7 @@ export interface Database {
           note?: string
           created_at?: string
         }
+        Relationships: []
       }
       appointments: {
         Row: {
@@ -225,6 +229,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       service_types: {
         Row: {
@@ -254,6 +259,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
       reminders: {
         Row: {
@@ -289,6 +295,7 @@ export interface Database {
           created_at?: string
           updated_at?: string
         }
+        Relationships: []
       }
     }
     Views: Record<string, never>
